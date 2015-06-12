@@ -14,7 +14,7 @@ inline void reclaimBoards(board* b);
 
 inline int atPos(board* b, int x, int y)
 {
-	return (b->cells[x] & (1 << y)) == 0 ? 0 : 1;
+	return (b->cells[x] & (1 << y));
 }
 
 inline void set0AtPos(board* b, int x, int y)
@@ -87,15 +87,19 @@ board* copyFrom(int* b)
 	{
 		pRet->cells[i] = 0x00000fff;
 	}
+
 	for (size_t i = 0; i < MAP_SIZE; i++)
 	{
 		for (size_t j = 0; j < MAP_SIZE; j++)
 		{
+			int v = b[CONVERT_COORD(j, i)];
+			printf("%d ", v);
 			if (b[CONVERT_COORD(j, i)] != BLOCK_EMPTY)
 			{
 				set0AtPos(pRet, i, j);
 			}
 		}
+		printf("\n");
 	}
 	return pRet;
 }
@@ -223,23 +227,92 @@ int abp(board* b, const Position myPos, const Position opPos, int depth, int alp
 	}
 }
 
-int evaluateBoard(board* b, const Position& myPos, const Position& opPos)
+int searchBoard[MAP_SIZE][MAP_SIZE];
+
+void copyToSearchBoard(board* b)
 {
-	return countMoves(b, myPos.x, myPos.y) - countMoves(b, opPos.x, opPos.y);
+	for (int i = 0; i < MAP_SIZE; ++i)
+	{
+		for (int j = 0; j < MAP_SIZE; ++j)
+		{
+			searchBoard[i][j] = atPos(b, i, j) == 0 ? 0 : 1;
+		}
+	}
 }
 
-int countMoves(board* b, int x, int y)
+int countMoves(int x, int y)
 {
-	int res = 0;
-	int a = MAXXY(0, x - 1), ma = MINXY(x + 2, MAP_SIZE);
-	int bb = MAXXY(0, y - 1), mb = MINXY(y + 2, MAP_SIZE);
-	for (; a < ma; ++a)
+	if (searchBoard[x][y] == 2)
 	{
-		for (int i = bb; i < mb; ++i)
+		return -1000000;
+	}
+	int count = 0;
+	searchBoard[x][y] = 0;
+	if (x > 0)
+	{
+		if (y > 0 && searchBoard[x - 1][y - 1])
 		{
-			res += atPos(b, a, i);
+			++count;
+			count += countMoves(x - 1, y - 1);
+		}
+		if (searchBoard[x - 1][y])
+		{
+			++count;
+			count += countMoves(x - 1, y);
+		}
+		if (y < MAP_SIZE - 1 && searchBoard[x - 1][y + 1])
+		{
+			++count;
+			count += countMoves(x - 1, y + 1);
 		}
 	}
 
-	return res;
+	if (y > 0 && searchBoard[x][y - 1])
+	{
+		++count;
+		count += countMoves(x, y - 1);
+	}
+	if (y < MAP_SIZE - 1 && searchBoard[x][y + 1])
+	{
+		++count;
+		count += countMoves(x, y + 1);
+	}
+
+	if (x < MAP_SIZE - 1)
+	{
+		if (y > 0 && searchBoard[x + 1][y - 1])
+		{
+			++count;
+			count += countMoves(x + 1, y - 1);
+		}
+		if (searchBoard[x + 1][y])
+		{
+			++count;
+			count += countMoves(x + 1, y);
+		}
+		if (y < MAP_SIZE - 1 && searchBoard[x + 1][y + 1])
+		{
+			++count;
+			count += countMoves(x + 1, y + 1);
+		}
+	}
+
+	return count;
+}
+
+int evaluateBoard(board* b, const Position& myPos, const Position& opPos)
+{
+	copyToSearchBoard(b);
+	searchBoard[myPos.x][myPos.y] = 0;
+	searchBoard[opPos.x][opPos.y] = 2;
+
+	int myMovableCount = countMoves(myPos.x, myPos.y);
+	if (myMovableCount < 0)
+	{
+		return 0;
+	}
+
+	int opponentMovableCount = countMoves(opPos.x, opPos.y);
+
+	return myMovableCount - opponentMovableCount;
 }
