@@ -28,11 +28,15 @@ struct board
 #endif
 };
 
+int countMoves(int x, int y);
+
+void copyToSearchBoard(board* b);
+
+void initBoards();
 
 //typedef _board board;
 #if _DEBUG
 int at(int x, int y);
-void initBoards();
 board* allocBoards(board* copy);
 void reclaimBoards(board* b);
 #endif
@@ -45,5 +49,7 @@ board* copyFrom(int *origin);
 Implementation of game's AI using alpha-beta prunning
 */
 int abp(board* b, const Position myPos, const Position opPos, int depth, int alpha, int beta, bool maximizePlayer, bool returnDirection);
+
+int toStandardDirection(int aiDir);
 
 #endif

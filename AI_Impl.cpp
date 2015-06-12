@@ -3,7 +3,11 @@
 
 #include "AI_Impl.h"
 
+#define POSITIVE -1000
+
+#if _DEBUG
 int board::count = 0;
+#endif
 
 #if !_DEBUG
 inline int at(int x, int y);
@@ -240,13 +244,19 @@ void copyToSearchBoard(board* b)
 	}
 }
 
+/*
+Count moves if one player's position is (x, y) using deep-first search algorithm
+*/
 int countMoves(int x, int y)
 {
+	int count = 0;
+
+	// Found opponent
 	if (searchBoard[x][y] == 2)
 	{
-		return -1000000;
+		count = POSITIVE;
 	}
-	int count = 0;
+
 	searchBoard[x][y] = 0;
 	if (x > 0)
 	{
@@ -307,12 +317,39 @@ int evaluateBoard(board* b, const Position& myPos, const Position& opPos)
 	searchBoard[opPos.x][opPos.y] = 2;
 
 	int myMovableCount = countMoves(myPos.x, myPos.y);
+	// Reset search board if my position and opponent position are in same plane (they can be connected by some moves)
+	// because searching for my moves sets all position available to 0.
+	// This is applicable only as my position split all my available moves to 2 parts.
 	if (myMovableCount < 0)
 	{
+		copyToSearchBoard(b);
+	}
+	int opponentMovableCount = countMoves(opPos.x, opPos.y);
+
+	if (myMovableCount < 0)
+	{
+		// Reconstruct my moves
+		myMovableCount = myMovableCount - POSITIVE - 1; // minus 1: position of opponent is set to 2 before
+		if (myMovableCount > opponentMovableCount * 2) // I can absolutely win
+		{
+			return 1000;
+		}
+
 		return 0;
 	}
 
-	int opponentMovableCount = countMoves(opPos.x, opPos.y);
+	return myMovableCount == opponentMovableCount ? 0 : (myMovableCount > opponentMovableCount ? 1000 : -1000);
+}
 
-	return myMovableCount - opponentMovableCount;
+int toStandardDirection(int aiDir)
+{
+	switch (aiDir)
+	{
+	case 1: return 3;
+	case 2: return 4;
+	case 3: return 1;
+	case 4: return 2;
+	default:
+		return 0;
+	}
 }
