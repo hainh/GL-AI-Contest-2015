@@ -4,6 +4,7 @@
 #include "AI_Impl.h"
 
 #define POSITIVE -1000
+#define DISTANCE_SQR(x1, y1, x2, y2) (((x1) - (x2)) * ((x1) - (x2)) + ((y1) - (y2)) * ((y1) - (y2)))
 
 #if _DEBUG
 int board::count = 0;
@@ -96,21 +97,25 @@ board* copyFrom(int* b)
 	{
 		for (size_t j = 0; j < MAP_SIZE; j++)
 		{
+#if _DEBUG
 			int v = b[CONVERT_COORD(j, i)];
 			printf("%d ", v);
+#endif
 			if (b[CONVERT_COORD(j, i)] != BLOCK_EMPTY)
 			{
 				set0AtPos(pRet, i, j);
 			}
 		}
+#if _DEBUG
 		printf("\n");
+#endif
 	}
 	return pRet;
 }
 
 // AI implementation //
 /*Heuristic function:*/
-int countMoves(board* b, int x, int y);
+int countPosibleMoves(board* b, int x, int y);
 
 /*Heuristic function:*/
 int evaluateBoard(board* b, const Position& myPos, const Position& opPos);
@@ -124,15 +129,14 @@ void findAvailableDir(board* b, int &d1, int &d2, int &d3, int &d4, int x, int y
 	d4 = x < MAP_SIZE - 1 ? atPos(b, x + 1, y) : 0;
 }
 
-inline void moveMe(board* b, const int d, int &resultDir, Position &my,const Position &opp, int &alpha, int &beta, int &ev, int depth, bool &prunned)
+inline void moveMe(board* b, const int d, int &resultDir, Position &my,const Position &opp, int &alpha, int &beta, int depth, bool &prunned)
 {
 	board* next = allocBoards(b);
 	set0AtPos(next, my.x, my.y);
 	int t = abp(next, my, opp, depth - 1, alpha, beta, false, false);
-	ev = MAXXY(ev, t);
-	if (ev > alpha)
+	if (t > alpha)
 	{
-		alpha = ev;
+		alpha = t;
 		resultDir = d;
 	}
 	if (beta <= alpha)
@@ -142,13 +146,12 @@ inline void moveMe(board* b, const int d, int &resultDir, Position &my,const Pos
 	reclaimBoards(next);
 }
 
-inline void moveOpp(board* b, const Position &my, Position &opp, int &alpha, int &beta, int &ev, int depth, bool &prunned)
+inline void moveOpp(board* b, const Position &my, Position &opp, int &alpha, int &beta, int depth, bool &prunned)
 {
 	board* next = allocBoards(b);
 	set0AtPos(next, opp.x, opp.y);
 	int t = abp(next, my, opp, depth - 1, alpha, beta, true, false);
-	ev = MINXY(ev, t);
-	beta = MINXY(beta, ev);
+	beta = MINXY(beta, t);
 	if (beta <= alpha)
 	{
 		prunned = true;
@@ -156,7 +159,7 @@ inline void moveOpp(board* b, const Position &my, Position &opp, int &alpha, int
 	reclaimBoards(next);
 }
 
-int abp(board* b, const Position myPos, const Position opPos, int depth, int alpha, int beta, bool maximizePlayer, bool returnDirection)
+int abp(board* b, const Position &myPos, const Position &opPos, int depth, int alpha, int beta, bool maximizePlayer, bool returnDirection)
 {
 	if (depth == 0)
 	{
@@ -174,57 +177,55 @@ int abp(board* b, const Position myPos, const Position opPos, int depth, int alp
 
 	if ((d1 | d2 | d3 | d4) == 0) // terminate condition meets
 	{
-		return -1000;
+		return -1000 - depth;
 	}
 
 	if ((e1 | e2 | e3 | e4) == 0) // terminate condition meets
 	{
-		return 1000;
+		return 1000 + depth;
 	}
 
 	if (maximizePlayer)
 	{
-		int ev = MIN_INT;
 		bool prunned = false;
 		int dir = 0;
 		if (d1 > 0)
 		{
-			moveMe(b, 1, dir, Position(x, y - 1), opPos, alpha, beta, ev, depth, prunned);
+			moveMe(b, 1, dir, Position(x, y - 1), opPos, alpha, beta, depth, prunned);
 		}
 		if (!prunned && d2 > 0)
 		{
-			moveMe(b, 2, dir, Position(x - 1, y), opPos, alpha, beta, ev, depth, prunned);
+			moveMe(b, 2, dir, Position(x - 1, y), opPos, alpha, beta, depth, prunned);
 		}
 		if (!prunned && d3 > 0)
 		{
-			moveMe(b, 3, dir, Position(x, y + 1), opPos, alpha, beta, ev, depth, prunned);
+			moveMe(b, 3, dir, Position(x, y + 1), opPos, alpha, beta, depth, prunned);
 		}
 		if (!prunned && d4 > 0)
 		{
-			moveMe(b, 4, dir, Position(x + 1, y), opPos, alpha, beta, ev, depth, prunned);
+			moveMe(b, 4, dir, Position(x + 1, y), opPos, alpha, beta, depth, prunned);
 		}
 
 		return returnDirection ? dir : alpha;
 	}
 	else
 	{
-		int ev = MAX_INT;
 		bool prunned = false;
 		if (e1 > 0)
 		{
-			moveOpp(b, myPos, Position(ox, oy - 1), alpha, beta, ev, depth, prunned);
+			moveOpp(b, myPos, Position(ox, oy - 1), alpha, beta, depth, prunned);
 		}
 		if (!prunned && e2 > 0)
 		{
-			moveOpp(b, myPos, Position(ox - 1, oy), alpha, beta, ev, depth, prunned);
+			moveOpp(b, myPos, Position(ox - 1, oy), alpha, beta, depth, prunned);
 		}
 		if (!prunned && e3 > 0)
 		{
-			moveOpp(b, myPos, Position(ox, oy + 1), alpha, beta, ev, depth, prunned);
+			moveOpp(b, myPos, Position(ox, oy + 1), alpha, beta, depth, prunned);
 		}
 		if (!prunned && e4 > 0)
 		{
-			moveOpp(b, myPos, Position(ox + 1, oy), alpha, beta, ev, depth, prunned);
+			moveOpp(b, myPos, Position(ox + 1, oy), alpha, beta, depth, prunned);
 		}
 
 		return beta;
@@ -245,9 +246,9 @@ void copyToSearchBoard(board* b)
 }
 
 /*
-Count moves if one player's position is (x, y) using deep-first search algorithm
+Count all posible moves if one player's position is (x, y) using deep-first search algorithm
 */
-int countMoves(int x, int y)
+int countPosibleMoves(int x, int y)
 {
 	int count = 0;
 
@@ -263,29 +264,29 @@ int countMoves(int x, int y)
 		if (y > 0 && searchBoard[x - 1][y - 1])
 		{
 			++count;
-			count += countMoves(x - 1, y - 1);
+			count += countPosibleMoves(x - 1, y - 1);
 		}
 		if (searchBoard[x - 1][y])
 		{
 			++count;
-			count += countMoves(x - 1, y);
+			count += countPosibleMoves(x - 1, y);
 		}
 		if (y < MAP_SIZE - 1 && searchBoard[x - 1][y + 1])
 		{
 			++count;
-			count += countMoves(x - 1, y + 1);
+			count += countPosibleMoves(x - 1, y + 1);
 		}
 	}
 
 	if (y > 0 && searchBoard[x][y - 1])
 	{
 		++count;
-		count += countMoves(x, y - 1);
+		count += countPosibleMoves(x, y - 1);
 	}
 	if (y < MAP_SIZE - 1 && searchBoard[x][y + 1])
 	{
 		++count;
-		count += countMoves(x, y + 1);
+		count += countPosibleMoves(x, y + 1);
 	}
 
 	if (x < MAP_SIZE - 1)
@@ -293,17 +294,17 @@ int countMoves(int x, int y)
 		if (y > 0 && searchBoard[x + 1][y - 1])
 		{
 			++count;
-			count += countMoves(x + 1, y - 1);
+			count += countPosibleMoves(x + 1, y - 1);
 		}
 		if (searchBoard[x + 1][y])
 		{
 			++count;
-			count += countMoves(x + 1, y);
+			count += countPosibleMoves(x + 1, y);
 		}
 		if (y < MAP_SIZE - 1 && searchBoard[x + 1][y + 1])
 		{
 			++count;
-			count += countMoves(x + 1, y + 1);
+			count += countPosibleMoves(x + 1, y + 1);
 		}
 	}
 
@@ -316,7 +317,7 @@ int evaluateBoard(board* b, const Position& myPos, const Position& opPos)
 	searchBoard[myPos.x][myPos.y] = 0;
 	searchBoard[opPos.x][opPos.y] = 2;
 
-	int myMovableCount = countMoves(myPos.x, myPos.y);
+	int myMovableCount = countPosibleMoves(myPos.x, myPos.y);
 	// Reset search board if my position and opponent position are in same plane (they can be connected by some moves)
 	// because searching for my moves sets all position available to 0.
 	// This is applicable only as my position split all my available moves to 2 parts.
@@ -324,7 +325,7 @@ int evaluateBoard(board* b, const Position& myPos, const Position& opPos)
 	{
 		copyToSearchBoard(b);
 	}
-	int opponentMovableCount = countMoves(opPos.x, opPos.y);
+	int opponentMovableCount = countPosibleMoves(opPos.x, opPos.y);
 
 	if (myMovableCount < 0)
 	{
@@ -341,15 +342,313 @@ int evaluateBoard(board* b, const Position& myPos, const Position& opPos)
 	return myMovableCount == opponentMovableCount ? 0 : (myMovableCount > opponentMovableCount ? 1000 : -1000);
 }
 
-int toStandardDirection(int aiDir)
+/*
+  Count all moves that I made
+*/
+int countMoved(const int* const board)
 {
-	switch (aiDir)
+	int moves = 0;
+	int stt = 0;
+	for (int x = 0; x < MAP_SIZE; ++x)
 	{
-	case 1: return 3;
-	case 2: return 4;
-	case 3: return 1;
-	case 4: return 2;
+		for (int y = 0; y < MAP_SIZE; ++y)
+		{
+			stt = board[CONVERT_COORD(x, y)];
+			if (stt != BLOCK_EMPTY && stt != BLOCK_OBSTACLE)
+			{
+				++moves;
+			}
+		}
+	}
+
+	return moves / 2;
+}
+
+void simulateMove(int* b, int dir, int &x, int &y)
+{
+	switch (dir)
+	{
+	case 1:
+		--x;
+		break;
+	case 2:
+		--y;
+		break;
+	case 3:
+		++x;
+		break;
+	case 4:
+		++y;
+		break;
 	default:
-		return 0;
+		break;
+	}
+	b[CONVERT_COORD(x, y)] = 1;
+}
+
+void undoMove(int* b, int dir, int &x, int &y)
+{
+	switch (dir)
+	{
+	case 3:
+		--x;
+		break;
+	case 4:
+		--y;
+		break;
+	case 1:
+		++x;
+		break;
+	case 2:
+		++y;
+		break;
+	default:
+		break;
+	}
+	b[CONVERT_COORD(x, y)] = 0;
+}
+
+int searchDirFromUpperLeftCorner(int* b_cpy, const Position &myPos, int moves)
+{
+	int x1 = myPos.x, y1 = myPos.y;
+	int x2 = x1, y2 = y1;
+	++y1; // down
+	++x2; // right
+	if (b_cpy[CONVERT_COORD(x1, y1)] == 0 && b_cpy[CONVERT_COORD(x2, y2)] == 0)
+	{
+		int d01 = x1 * x1 + y1 * y1;
+		int d13 = DISTANCE_SQR(x1, y1, 5, 5);
+		int d02 = x2 * x2 + y2 * y2;
+		int d23 = DISTANCE_SQR(x2, y2, 5, 5);
+		int s = d01 + d13 - (d02 + d23);
+		if (s < 0)
+		{
+			return 4; // decide to go down to (x1, y1)
+		}
+		else if (s > 0)
+		{
+			return 3; // decide to go right to (x2, y2)
+		}
+		else
+		{
+			// random direction (other idea?)
+			return rand() % 1000 < 500 ? 3 : 4;
+		}
+	}
+
+	return b_cpy[CONVERT_COORD(x1, y1)] == 0 ? 4 : 3;
+}
+
+int searchDirFromBottomRightCorner(int* b_cpy, const Position &myPos, int moves)
+{
+	int x1 = myPos.x, y1 = myPos.y;
+	int x2 = x1, y2 = y1;
+	--y1; // p1 -> up
+	--x2; // p2 -> left
+	if (b_cpy[CONVERT_COORD(x1, y1)] == 0 && b_cpy[CONVERT_COORD(x2, y2)] == 0)
+	{
+		int d01 = DISTANCE_SQR(x1, y1, MAP_SIZE - 1, MAP_SIZE - 1);
+		int d13 = DISTANCE_SQR(x1, y1, 5, 5);
+		int d02 = DISTANCE_SQR(x2, y2, MAP_SIZE - 1, MAP_SIZE - 1);
+		int d23 = DISTANCE_SQR(x2, y2, 5, 5);
+		int s = d01 + d13 - (d02 + d23);
+		if (s < 0)
+		{
+			return 2; // decide to go up to (x1, y1)
+		}
+		else if (s > 0)
+		{
+			return 1; // decide to go left to (x2, y2)
+		}
+		else
+		{
+			// random direction (other idea?)
+			return rand() % 1000 < 500 ? 3 : 4;
+		}
+	}
+
+	return b_cpy[CONVERT_COORD(x1, y1)] == 0 ? 2 : 1;
+}
+
+int searchBestDirFromUpperLeft(int* board, const Position &myPos)
+{
+	int x = myPos.x, y = myPos.y;
+	if (x == y && board[CONVERT_COORD(x, y + 1)] == 0 && board[CONVERT_COORD(x + 1, y)] == 0)
+	{
+		int length;
+		int moves[5];
+		int count = 0;
+		// test go down
+		moves[count++] = 4;
+		simulateMove(board, 4, x, y);
+		length = DISTANCE_SQR(0, 0, x, y + 1) + DISTANCE_SQR(x, y + 1, 5, 5);
+
+		moves[count++] = searchDirFromUpperLeftCorner(board, Position(x, y));
+		simulateMove(board, moves[count - 1], x, y);
+		length += DISTANCE_SQR(0, 0, x, y + 1) + DISTANCE_SQR(x, y + 1, 5, 5);
+
+		moves[count++] = searchDirFromUpperLeftCorner(board, Position(x, y));
+		simulateMove(board, moves[count - 1], x, y);
+		length += DISTANCE_SQR(0, 0, x, y + 1) + DISTANCE_SQR(x, y + 1, 5, 5);
+
+		moves[count++] = searchDirFromUpperLeftCorner(board, Position(x, y));
+		simulateMove(board, moves[count - 1], x, y);
+		length += DISTANCE_SQR(0, 0, x, y + 1) + DISTANCE_SQR(x, y + 1, 5, 5);
+		// test go right
+	}
+
+	return searchDirFromUpperLeftCorner(board, myPos);
+}
+
+int searchBestDirFromUpperLeft(int* board, const Position &myPos)
+{
+
+}
+
+/*
+ Split the square to 2 triangle with a diagonal through start positions of 2 player. We have upper triangle is one with a
+ corner is at top right, the other called lower triangle.
+ Move with strategy:
+   In 10 first moves:
+     All moves are in the diagonal or closest to the diagonal.
+     Minimize blank positions of triangle where enemy stand on.
+   Next moves: Use our AI algorithm.
+*/
+int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
+{
+	int allMovesCount = countMoved(origBoard);
+
+	if (allMovesCount <= 10)
+	{
+		int b_cpy[MAP_SIZE*MAP_SIZE];
+		memcpy(b_cpy, origBoard, sizeof(b_cpy));
+		bool upper = origBoard[0] == origBoard[CONVERT_COORD(myPos.x, myPos.y)]
+			|| origBoard[0] == origBoard[CONVERT_COORD(myPos.x, myPos.y)] + 1;
+		int dx = upper ? 1 : -1;
+		int dy = dx;
+
+		//for (int y = 0; y < MAP_SIZE; ++y)
+		//{
+		//	for (int x = 0; x < MAP_SIZE; ++x)
+		//	{
+		//		if (upper)
+		//		{
+		//			if (x > 6 || y > 6)
+		//			{
+		//				b_cpy[CONVERT_COORD(x, y)] = 1;
+		//			}
+		//		}
+		//		else
+		//		{
+		//			if (x < 4 || y < 4)
+		//			{
+		//				b_cpy[CONVERT_COORD(x, y)] = 1;
+		//			}
+		//		}
+		//	}
+		//}
+		//if (upper)
+		//{
+		//	b_cpy[CONVERT_COORD(6, 6)] = 1;
+		//}
+		//else
+		//{
+		//	b_cpy[CONVERT_COORD(4, 4)] = 1;
+		//}
+
+		// Patch dead position (cannot move forward if stand on this position)
+		if (upper)
+		{
+			for (int x = 5; x > 0; --x)
+			{
+				for (int y = 5; y > 0; --y)
+				{
+					if (b_cpy[CONVERT_COORD(x, y)] && b_cpy[CONVERT_COORD(x - 1, y + 1)])
+					{
+						b_cpy[CONVERT_COORD(x - 1, y)] = 1;
+					}
+				}
+			}
+		}
+		else
+		{
+			for (int x = 6; x < MAP_SIZE - 1; ++x)
+			{
+				for (int y = 6; y < MAP_SIZE - 1; ++y)
+				{
+					if (b_cpy[CONVERT_COORD(x, y)] && b_cpy[CONVERT_COORD(x - 1, y + 1)])
+					{
+						b_cpy[CONVERT_COORD(x, y + 1)] = 1;
+					}
+				}
+			}
+		}
+
+		int x1 = myPos.x, y1 = myPos.y;
+		int x2 = x1, y2 = y1;
+		if (upper) // go down or right only
+		{
+			++y1; // down
+			++x2; // right
+			if (b_cpy[CONVERT_COORD(x1, y1)] == 0 && b_cpy[CONVERT_COORD(x2, y2)] == 0)
+			{
+				int d01 = x1 * x1 + y1 * y1;
+				int d13 = DISTANCE_SQR(x1, y1, 5, 5);
+				int d02 = x2 * x2 + y2 * y2;
+				int d23 = DISTANCE_SQR(x2, y2, 5, 5);
+				int s = d01 + d13 - (d02 + d23);
+				if (s < 0)
+				{
+					return 4; // decide to go down to (x1, y1)
+				}
+				else if (s > 0)
+				{
+					return 3; // decide to go right to (x2, y2)
+				}
+				else
+				{
+					// random direction (other idea?)
+					return rand() % 1000 < 500 ? 3 : 4;
+				}
+			}
+			
+			return b_cpy[CONVERT_COORD(x1, y1)] == 0 ? 4 : 3;
+		}
+		else // go up or left only
+		{
+			--y1; // p1 -> up
+			--x2; // p2 -> left
+			if (b_cpy[CONVERT_COORD(x1, y1)] == 0 && b_cpy[CONVERT_COORD(x2, y2)] == 0)
+			{
+				int d01 = DISTANCE_SQR(x1, y1, MAP_SIZE - 1, MAP_SIZE - 1);
+				int d13 = DISTANCE_SQR(x1, y1, 5, 5);
+				int d02 = DISTANCE_SQR(x2, y2, MAP_SIZE - 1, MAP_SIZE - 1);
+				int d23 = DISTANCE_SQR(x2, y2, 5, 5);
+				int s = d01 + d13 - (d02 + d23);
+				if (s < 0)
+				{
+					return 2; // decide to go up to (x1, y1)
+				}
+				else if (s > 0)
+				{
+					return 1; // decide to go left to (x2, y2)
+				}
+				else
+				{
+					// random direction (other idea?)
+					return rand() % 1000 < 500 ? 3 : 4;
+				}
+			}
+
+			return b_cpy[CONVERT_COORD(x1, y1)] == 0 ? 2 : 1;
+		}
+	}
+	else // Oke then use smart algorithm to solve enemy
+	{
+		board *b = copyFrom(origBoard);
+
+		int direction = abp(b, Position(myPos.y, myPos.x), Position(opPos.y, opPos.x), 50, MIN_INT, MAX_INT, true, true);
+		return direction;
 	}
 }
+

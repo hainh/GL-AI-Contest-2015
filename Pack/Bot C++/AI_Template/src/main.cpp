@@ -33,63 +33,113 @@
 // See <ai/Game.h> and <ai/AI.h> for supported APIs.
 void AI_Update()
 {
+	FILETIME ft_now;
+	GetSystemTimeAsFileTime(&ft_now);
+
 	AI *p_ai = AI::GetInstance();
 	int * _board = p_ai->GetBoard();	// Access block at (x, y) by using board[CONVERT_COORD(x,y)]
 	Position myPos = p_ai->GetMyPosition();
 	Position enemyPos = p_ai->GetEnemyPosition();
 
-	board *b = copyFrom(_board);
-
-	int t = myPos.x;
-	myPos.x = myPos.y;
-	myPos.y = t;
-
-	t = enemyPos.x;
-	enemyPos.x = enemyPos.y;
-	enemyPos.y = t;
-
-	int direction = abp(b, myPos, enemyPos, 30, MIN_INT, MAX_INT, true, true);
+	int direction = AiMove(_board, myPos, enemyPos);
 	//direction = toStandardDirection(direction);
 
 	if(direction)
 	{
-		LOG("Move: %d\n", direction);
+		printf("Move: %d", direction);
 
 		//Remember to call AI_Move() within allowed time
 		Game::GetInstance()->AI_Move(direction);
 	}
 	else
 	{
-		LOG("Damn, I was trapped!\n");
+		Game::GetInstance()->AI_Move(0);
+		printf("Damn, I was trapped!\n");
 	}
+
+	FILETIME ft_now2;
+	GetSystemTimeAsFileTime(&ft_now2);
+
+	LONGLONG ll_now = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
+	LONGLONG ll_now2 = (LONGLONG)ft_now2.dwLowDateTime + ((LONGLONG)(ft_now2.dwHighDateTime) << 32LL);
+
+	printf("time = %lld\n", (ll_now2 - ll_now) / 10000);
 }
 
 #if _DEBUG
 void test()
 {
 	int board_state[] = {
-		1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0,
-		0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0,
-		0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0,
-		0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0,
-		0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0,
-		0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0,
-		0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0,
-		0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1
-	};
-	extern int evaluateBoard(board* b, const Position& myPos, const Position& opPos);
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0,
+		0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 5, 0, 0, 0, 0, 0, 0, 5, 0,
+		0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0,//
+		0, 5, 0, 0, 0, 0, 0, 0, 5, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0,
+		0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	};//               |
+	//extern int evaluateBoard(board* b, const Position& myPos, const Position& opPos);
+	Position myPos = Position(0, 0);
+	Position opPos = Position(10, 10);
 
-	board* b = copyFrom(board_state);
-	int e = evaluateBoard(b, Position(7, 5), Position(9, 3));
+	while (true)
+	{
+		FILETIME ft_now;
+		GetSystemTimeAsFileTime(&ft_now);
 
-	//copyToSearchBoard(b);
-	//int t = countMoves(7, 4);
-	//int a = evaluateBoard(b, Position())
+		int dir = AiMove(board_state, myPos, opPos);
+		
 
-	//int dir = abp(b, Position(7, 4), Position(9, 3), 50, MIN_INT, MAX_INT, true, true);
+		int charCode = std::getchar();
+	}
+
+	//int move = 2;
+	//for (int i = 0; i < 10; ++i)
+	//{
+	//	++move;
+	//	FILETIME ft_now;
+	//	GetSystemTimeAsFileTime(&ft_now);
+	//	board* b = copyFrom(board_state);
+	//	std::swap(myPos.x, myPos.y);
+	//	int dir = abp(b, myPos, Position(5, 5), 35, MIN_INT, MAX_INT, true, true);
+	//	std::swap(myPos.x, myPos.y);
+	//	FILETIME ft_now2;
+	//	GetSystemTimeAsFileTime(&ft_now2);
+	//	LONGLONG ll_now = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
+	//	LONGLONG ll_now2 = (LONGLONG)ft_now2.dwLowDateTime + ((LONGLONG)(ft_now2.dwHighDateTime) << 32LL);
+	//	printf("\ntime = %lld, dir = %d\n", (ll_now2 - ll_now) / 10000, dir);
+	//	switch (dir)
+	//	{
+	//	case 1:
+	//		myPos.x--;
+	//		break;
+	//	case 2:
+	//		myPos.y--;
+	//		break;
+	//	case 3:
+	//		myPos.x++;
+	//		break;
+	//	case 4:
+	//		myPos.y++;
+	//		break;
+	//	default:
+	//		break;
+	//	}
+	//	board_state[CONVERT_COORD(myPos.x, myPos.y)] = move;
+	//	for (int y = 0; y < MAP_SIZE; ++y)
+	//	{
+	//		for (int x = 0; x < MAP_SIZE; ++x)
+	//		{
+	//			printf("%02d ", board_state[CONVERT_COORD(x, y)]);
+	//		}
+	//		printf("\n");
+	//	}
+	//}
+	//getchar();
 }
 #endif
 
@@ -99,10 +149,11 @@ void test()
 
 int main(int argc, char* argv[])
 {
-#if _DEBUG
-	//test();
-#endif
 	initBoards();
+
+#if _DEBUG
+	test();
+#endif
 
 	srand(clock());
 	
