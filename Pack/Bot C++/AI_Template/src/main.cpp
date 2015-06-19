@@ -70,31 +70,90 @@ void AI_Update()
 void test()
 {
 	int board_state[] = {
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0,
-		0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 5, 0, 0, 0, 0, 0, 0, 5, 0,
-		0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0,//
-		0, 5, 0, 0, 0, 0, 0, 0, 5, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0,
-		0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+		1, 1, 0, 0, 0, 5, 0, 0, 0, 0, 0,
+		0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 1, 0, 0, 0, 0, 0, 5, 0, 0,
+		0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 5,
+		0, 0, 0, 0, 1, 3, 3, 0, 0, 0, 0,
+		5, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0,
+		0, 0, 5, 0, 0, 0, 0, 0, 3, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3,
+		0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 3,
 	};//               |
 	//extern int evaluateBoard(board* b, const Position& myPos, const Position& opPos);
-	Position myPos = Position(0, 0);
-	Position opPos = Position(10, 10);
+	Position myPos = Position(4, 5);
+	Position opPos = Position(5, 5);
 
 	while (true)
 	{
 		FILETIME ft_now;
 		GetSystemTimeAsFileTime(&ft_now);
+		LONGLONG ll_now = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
 
 		int dir = AiMove(board_state, myPos, opPos);
-		
 
-		int charCode = std::getchar();
+		GetSystemTimeAsFileTime(&ft_now);
+		LONGLONG ll_now2 = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
+		printf("\ntime = %lld, dir = %d\n", (ll_now2 - ll_now) / 10000, dir);
+		board_state[CONVERT_COORD(myPos.x, myPos.y)] = BLOCK_PLAYER_1_TRAIL;
+		switch (dir)
+		{
+		case 1:
+			myPos.x--;
+			break;
+		case 2:
+			myPos.y--;
+			break;
+		case 3:
+			myPos.x++;
+			break;
+		case 4:
+			myPos.y++;
+			break;
+		default:
+			break;
+		}
+		board_state[CONVERT_COORD(myPos.x, myPos.y)] = BLOCK_PLAYER_1;
+		for (int y = 0; y < MAP_SIZE; ++y)
+		{
+			for (int x = 0; x < MAP_SIZE; ++x)
+			{
+				printf("%d  ", board_state[CONVERT_COORD(x, y)]);
+			}
+			printf("\n\n");
+		}
+
+		int charCode = 0;
+		do
+		{
+			printf("Your move: ");
+			charCode = getchar();
+			while (getchar() != '\n'){}
+		}
+		while (charCode != 'a' && charCode != 's' && charCode != 'd' && charCode != 'w');
+		
+		board_state[CONVERT_COORD(opPos.x, opPos.y)] = BLOCK_PLAYER_2_TRAIL;
+		switch (charCode)
+		{
+		case 'a':
+			opPos.x--;
+			break;
+		case 'w':
+			opPos.y--;
+			break;
+		case 'd':
+			opPos.x++;
+			break;
+		case 's':
+			opPos.y++;
+			break;
+		default:
+			break;
+		}
+		board_state[CONVERT_COORD(opPos.x, opPos.y)] = BLOCK_PLAYER_2;
+
 	}
 
 	//int move = 2;
