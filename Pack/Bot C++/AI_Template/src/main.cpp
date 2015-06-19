@@ -66,7 +66,7 @@ void AI_Update()
 	printf("time = %lld\n", (ll_now2 - ll_now) / 10000);
 }
 
-#if _DEBUG
+#if !_DEBUG
 void test()
 {
 	int board_state[] = {
@@ -210,7 +210,7 @@ int main(int argc, char* argv[])
 {
 	initBoards();
 
-#if _DEBUG
+#if !_DEBUG
 	test();
 #endif
 
