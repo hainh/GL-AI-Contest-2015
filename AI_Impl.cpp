@@ -54,14 +54,19 @@ inline void sortFour(int &a, int &b, int &c, int &d, int &aa, int &bb, int &cc, 
 	}
 }
 
-inline int atPos(board* b, int x, int y)
+inline int atPos(board* &b, int x, int y)
 {
 	return (b->cells[x] & (1 << y));
 }
 
-inline void set0AtPos(board* b, int x, int y)
+inline void set0AtPos(board* &b, int x, int y)
 {
 	b->cells[x] = b->cells[x] & (~(1 << y));
+}
+
+inline void makeAvaiAtPos(board* &b, int x, int y)
+{
+	b->cells[x] = b->cells[x] | (1 << y);
 }
 
 board* node = nullptr;
@@ -91,6 +96,10 @@ void initBoards()
 #endif
 }
 
+#if _DEBUG
+int allocCount = 0;
+#endif
+
 board* allocBoards(board* copy)
 {
 	if (node == nullptr)
@@ -103,6 +112,9 @@ board* allocBoards(board* copy)
 
 	if (copy)
 	{
+#if _DEBUG
+		allocCount++;
+#endif
 		ret->cells[0] = copy->cells[0];
 		ret->cells[1] = copy->cells[1];
 		ret->cells[2] = copy->cells[2];
@@ -169,11 +181,11 @@ inline void findAvailableDir(board* b, int &d1, int &d2, int &d3, int &d4, int x
 	d4 = x < MAP_SIZE - 1 ? (atPos(b, x + 1, y) == 0 ? 0 : 4) : 0;
 }
 
-inline void moveMe(board* b, const int d, int &resultDir, Position &my,const Position &opp, int &v, int &alpha, int &beta, int depth, bool &prunned)
+inline void moveMe(board* next, const int d, int &resultDir, Position &my,const Position &opp, int &v, int &alpha, int &beta, int depth, bool &prunned)
 {
-	board* next = allocBoards(b);
 	set0AtPos(next, my.x, my.y);
 	int t = abp(next, my, opp, depth - 1, alpha, beta, false, false);
+	makeAvaiAtPos(next, my.x, my.y);
 	v = MAXXY(v, t);
 	if (v > alpha)
 	{
@@ -184,21 +196,19 @@ inline void moveMe(board* b, const int d, int &resultDir, Position &my,const Pos
 	{
 		prunned = true;
 	}
-	reclaimBoards(next);
 }
 
-inline void moveOpp(board* b, const Position &my, Position &opp, int &v, int &alpha, int &beta, int depth, bool &prunned)
+inline void moveOpp(board* next, const Position &my, Position &opp, int &v, int &alpha, int &beta, int depth, bool &prunned)
 {
-	board* next = allocBoards(b);
 	set0AtPos(next, opp.x, opp.y);
 	int t = abp(next, my, opp, depth - 1, alpha, beta, true, false);
+	makeAvaiAtPos(next, opp.x, opp.y);
 	v = MINXY(v, t);
 	beta = MINXY(beta, v);
 	if (beta <= alpha)
 	{
 		prunned = true;
 	}
-	reclaimBoards(next);
 }
 
 int deepMove(board* b, const Position &pos, int depth, bool returnDirection)
@@ -207,60 +217,59 @@ int deepMove(board* b, const Position &pos, int depth, bool returnDirection)
 	int d1 = 0, d2 = 0, d3 = 0, d4 = 0;
 	findAvailableDir(b, d1, d2, d3, d4, x, y);
 
-	if ((d1 | d2 | d3 | d4) == 0) // terminate condition meets
+	if ((d1 | d2 | d3 | d4) == 0 || depth == 50) // terminate condition meets
 	{
 		return depth;
 	}
 
-	int max;
+	int max = -1;
 	int dir = 1;
+	board* next = b;// allocBoards(b);
 
 	if (d1)
 	{
-		board* next = allocBoards(b);
 		set0AtPos(next, x, y - 1);
 		max = deepMove(next, Position(x, y - 1), depth + 1, false);
-		reclaimBoards(next);
+		makeAvaiAtPos(next, x, y - 1);
 	}
 
 	if (d2)
 	{
-		board* next = allocBoards(b);
 		set0AtPos(next, x - 1, y);
 		int v = deepMove(next, Position(x - 1, y), depth + 1, false);
+		makeAvaiAtPos(next, x - 1, y);
 		if (v > max)
 		{
 			max = v;
 			dir = 2;
 		}
-		reclaimBoards(next);
 	}
 	
 	if (d3)
 	{
-		board* next = allocBoards(b);
 		set0AtPos(next, x, y + 1);
 		int v = deepMove(next, Position(x, y + 1), depth + 1, false);
+		makeAvaiAtPos(next, x, y + 1);
 		if (v > max)
 		{
 			max = v;
 			dir = 3;
 		}
-		reclaimBoards(next);
 	}
 
 	if (d4)
 	{
-		board* next = allocBoards(b);
 		set0AtPos(next, x + 1, y);
 		int v = deepMove(next, Position(x + 1, y), depth + 1, false);
+		makeAvaiAtPos(next, x + 1, y);
 		if (v > max)
 		{
 			max = v;
 			dir = 4;
 		}
-		reclaimBoards(next);
 	}
+
+	//reclaimBoards(next);
 
 	return returnDirection ? dir : max;
 }
@@ -281,25 +290,16 @@ int abp(board* b, const Position &myPos, const Position &opPos, int depth, int a
 	findAvailableDir(b, d1, d2, d3, d4, x, y);
 	findAvailableDir(b, e1, e2, e3, e4, ox, oy);
 
-	if (maximizePlayer && (d1 | d2 | d3 | d4) == 0) // terminate condition meets
+	if (!maximizePlayer && (d1 | d2 | d3 | d4) == 0) // terminate condition meets
 	{
 		return -1000 - depth;
 	}
 
-	if (!maximizePlayer && (e1 | e2 | e3 | e4) == 0) // terminate condition meets
+	if (maximizePlayer && (e1 | e2 | e3 | e4) == 0) // terminate condition meets
 	{
 		return 1000 - depth;
 	}
 
-	int dirOrderDistance[4];
-	int dx[5] = { 0, /*start here*/0, -1, 0, 1 };
-	int dy[5] = { 0, /*start here*/-1, 0, 1, 0 };
-
-	// Prepair order of moves
-	dirOrderDistance[0] = DISTANCE_SQR(x, y - 1, ox, oy);// | (1 << 16);
-	dirOrderDistance[1] = DISTANCE_SQR(x - 1, y, ox, oy);// | (2 << 16);
-	dirOrderDistance[2] = DISTANCE_SQR(x, y + 1, ox, oy);// | (3 << 16);
-	dirOrderDistance[3] = DISTANCE_SQR(x + 1, y, ox, oy);// | (4 << 16);
 
 
 	if (maximizePlayer)
@@ -308,23 +308,21 @@ int abp(board* b, const Position &myPos, const Position &opPos, int depth, int a
 		int dir = 0;
 		int v = -1000000;
 
-		sortFour(dirOrderDistance[0], dirOrderDistance[1], dirOrderDistance[2], dirOrderDistance[3], d1, d2, d3, d4);
-
 		if (!prunned && d1 > 0)
 		{
-			moveMe(b, 1, dir, Position(x + dx[d1], y + dy[d1]), opPos, v, alpha, beta, depth, prunned);
+			moveMe(b, 1, dir, Position(x, y - 1), opPos, v, alpha, beta, depth, prunned);
 		}
 		if (!prunned && d2 > 0)
 		{
-			moveMe(b, 2, dir, Position(x + dx[d2], y + dy[d2]), opPos, v, alpha, beta, depth, prunned);
+			moveMe(b, 2, dir, Position(x - 1, y), opPos, v, alpha, beta, depth, prunned);
 		}
 		if (!prunned && d3 > 0)
 		{
-			moveMe(b, 3, dir, Position(x + dx[d3], y + dy[d3]), opPos, v, alpha, beta, depth, prunned);
+			moveMe(b, 3, dir, Position(x, y + 1), opPos, v, alpha, beta, depth, prunned);
 		}
 		if (!prunned && d4 > 0)
 		{
-			moveMe(b, 4, dir, Position(x + dx[d4], y + dy[d4]), opPos, v, alpha, beta, depth, prunned);
+			moveMe(b, 4, dir, Position(x + 1, y), opPos, v, alpha, beta, depth, prunned);
 		}
 
 		return returnDirection ? dir : v;
@@ -334,23 +332,21 @@ int abp(board* b, const Position &myPos, const Position &opPos, int depth, int a
 		bool prunned = false;
 		int v = 1000000;
 
-		sortFour(dirOrderDistance[2], dirOrderDistance[3], dirOrderDistance[0], dirOrderDistance[1], e1, e2, e3, e4);
-
 		if (e1 > 0)
 		{
-			moveOpp(b, myPos, Position(ox + dx[e1], oy + dy[e1]), v, alpha, beta, depth, prunned);
+			moveOpp(b, myPos, Position(ox, oy - 1), v, alpha, beta, depth, prunned);
 		}
 		if (!prunned && e2 > 0)
 		{
-			moveOpp(b, myPos, Position(ox + dx[e2], oy + dy[e2]), v, alpha, beta, depth, prunned);
+			moveOpp(b, myPos, Position(ox - 1, oy), v, alpha, beta, depth, prunned);
 		}
 		if (!prunned && e3 > 0)
 		{
-			moveOpp(b, myPos, Position(ox + dx[e3], oy + dy[e3]), v, alpha, beta, depth, prunned);
+			moveOpp(b, myPos, Position(ox, oy + 1), v, alpha, beta, depth, prunned);
 		}
 		if (!prunned && e4 > 0)
 		{
-			moveOpp(b, myPos, Position(ox + dx[e4], oy + dy[e4]), v, alpha, beta, depth, prunned);
+			moveOpp(b, myPos, Position(ox + 1, oy), v, alpha, beta, depth, prunned);
 		}
 
 		return v;
@@ -384,23 +380,10 @@ int countPosibleMoves(int x, int y)
 	}
 
 	searchBoard[x][y] = 0;
-	if (x > 0)
+	if (x > 0 && searchBoard[x - 1][y])
 	{
-		if (y > 0 && searchBoard[x - 1][y - 1])
-		{
-			++count;
-			count += countPosibleMoves(x - 1, y - 1);
-		}
-		if (searchBoard[x - 1][y])
-		{
-			++count;
-			count += countPosibleMoves(x - 1, y);
-		}
-		if (y < MAP_SIZE - 1 && searchBoard[x - 1][y + 1])
-		{
-			++count;
-			count += countPosibleMoves(x - 1, y + 1);
-		}
+		++count;
+		count += countPosibleMoves(x - 1, y);
 	}
 
 	if (y > 0 && searchBoard[x][y - 1])
@@ -414,23 +397,51 @@ int countPosibleMoves(int x, int y)
 		count += countPosibleMoves(x, y + 1);
 	}
 
-	if (x < MAP_SIZE - 1)
+	if (x < MAP_SIZE - 1 && searchBoard[x + 1][y])
 	{
-		if (y > 0 && searchBoard[x + 1][y - 1])
-		{
-			++count;
-			count += countPosibleMoves(x + 1, y - 1);
-		}
-		if (searchBoard[x + 1][y])
-		{
-			++count;
-			count += countPosibleMoves(x + 1, y);
-		}
-		if (y < MAP_SIZE - 1 && searchBoard[x + 1][y + 1])
-		{
-			++count;
-			count += countPosibleMoves(x + 1, y + 1);
-		}
+		++count;
+		count += countPosibleMoves(x + 1, y);
+	}
+
+	return count;
+}
+
+/*
+Count all posible moves if one player's position is (x, y) using deep-first search algorithm. If two players are in same plane
+return a nagative and break all recursion calls.
+*/
+int countPosibleMovesWithBreak(int x, int y)
+{
+	int count = 0;
+
+	// Found opponent
+	if (searchBoard[x][y] == 2)
+	{
+		count = POSITIVE;
+	}
+
+	searchBoard[x][y] = 0;
+	if (x > 0 && searchBoard[x - 1][y])
+	{
+		++count;
+		count += countPosibleMoves(x - 1, y);
+	}
+
+	if (y > 0 && searchBoard[x][y - 1])
+	{
+		++count;
+		count += countPosibleMoves(x, y - 1);
+	}
+	if (y < MAP_SIZE - 1 && searchBoard[x][y + 1])
+	{
+		++count;
+		count += countPosibleMoves(x, y + 1);
+	}
+
+	if (x < MAP_SIZE - 1 && searchBoard[x + 1][y])
+	{
+		++count;
+		count += countPosibleMoves(x + 1, y);
 	}
 
 	return count;
@@ -867,9 +878,9 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 			{
 				for (int y = 6; y < MAP_SIZE - 1; ++y)
 				{
-					if (b_cpy[CONVERT_COORD(x, y)] && b_cpy[CONVERT_COORD(x - 1, y + 1)])
+					if (b_cpy[CONVERT_COORD(x, y)] && b_cpy[CONVERT_COORD(x + 1, y - 1)])
 					{
-						b_cpy[CONVERT_COORD(x, y + 1)] = 1;
+						b_cpy[CONVERT_COORD(x + 1, y)] = 1;
 					}
 				}
 			}
@@ -880,12 +891,12 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 		{
 			if (upper)
 			{
-				if (b_cpy[CONVERT_COORD(myPos.x + 1, myPos.y + 1)] == BLOCK_EMPTY)
+				if (b_cpy[CONVERT_COORD(myPos.x, myPos.y + 1)] == BLOCK_EMPTY)
 				{
 					return DIRECTION_DOWN;
 				}
 			}
-			else if (b_cpy[CONVERT_COORD(myPos.x - 1, myPos.y - 1)] == BLOCK_EMPTY)
+			else if (b_cpy[CONVERT_COORD(myPos.x, myPos.y - 1)] == BLOCK_EMPTY)
 			{
 				return DIRECTION_UP;
 			}
@@ -903,6 +914,10 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 	else // Oke then use smart algorithm to finish enemy
 	{
 		board *b = copyFrom(origBoard);
+		int direction;
+#if _DEBUG
+		allocCount = 0;
+#endif
 
 		if (depth == 0)
 		{
@@ -932,11 +947,16 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 			}
 			else
 			{
-				depth = posibleMoves;
+				printf("-> self move ");
+				direction = deepMove(b, Position(myPos.y, myPos.x), 0, true);
+				return direction;
 			}
 		}
-		printf(", depth = %d", depth);
-		int direction = abp(b, Position(myPos.y, myPos.x), Position(opPos.y, opPos.x), depth, MIN_INT, MAX_INT, true, true);
+		printf("-> depth = %d ", depth);
+		direction = abp(b, Position(myPos.y, myPos.x), Position(opPos.y, opPos.x), depth, MIN_INT, MAX_INT, true, true);
+#if _DEBUG
+		printf("Alloc Count = %d\n", allocCount);
+#endif
 		return direction;
 	}
 }
