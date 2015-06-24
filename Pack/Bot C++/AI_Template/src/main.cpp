@@ -28,6 +28,8 @@
 //   + A player will lose if they don't make a valid move within 3 seconds          //
 //////////////////////////////////////////////////////////////////////////////////////
 
+int moveCount = 50;
+
 // This function is called automatically when it's your turn.
 // Remember to call AI_Move() with a valid move before the time is run out.
 // See <ai/Game.h> and <ai/AI.h> for supported APIs.
@@ -42,7 +44,25 @@ void AI_Update()
 	Position enemyPos = p_ai->GetEnemyPosition();
 
 	int direction = AiMove(_board, myPos, enemyPos);
-	//direction = toStandardDirection(direction);
+
+	//int direction = 0;
+	//if (moveCount < 4)
+	//{
+	//	++moveCount;
+	//	if (myPos.x < 5)
+	//	{
+	//		direction = DIRECTION_RIGHT;
+	//	}
+	//	else
+	//	{
+	//		direction = DIRECTION_LEFT;
+	//	}
+	//}
+	//else
+	//{
+	//	board *b = copyFrom(_board);
+	//	direction = abp(b, Position(myPos.y, myPos.x), Position(enemyPos.y, enemyPos.x), 20, MIN_INT, MAX_INT, true, true);
+	//}
 
 	if(direction)
 	{
@@ -70,21 +90,21 @@ void AI_Update()
 void test()
 {
 	int board_state[] = {
-		1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5,
+		2, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0,
+		1, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0,
+		0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 5, 0, 0, 0, 0, 0, 0, 0, 5, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
+		0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0,
+		0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 3,
 	};//               |
 	//extern int evaluateBoard(board* b, const Position& myPos, const Position& opPos);
 	Position myPos = Position(10, 10);
-	Position opPos = Position(0, 0);
+	Position opPos = Position(0, 1);
 	for (int y = 0; y < MAP_SIZE; ++y)
 	{
 		for (int x = 0; x < MAP_SIZE; ++x)

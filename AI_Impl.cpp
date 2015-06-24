@@ -19,6 +19,9 @@ inline void reclaimBoards(board* b);
 #endif
 
 int searchBoard[MAP_SIZE][MAP_SIZE];
+bool followEnemy = true;
+bool enemyAtUpper = false;
+Position enemyPrevPos(-1, -1);
 
 int countPosibleMoves(int x, int y);
 void copyToSearchBoard(board* b);
@@ -217,13 +220,13 @@ inline void moveOpp(board* next, const Position &my, Position &opp, int &v, int 
 	}
 }
 
-int deepMove(board* b, const Position &pos, int depth, bool returnDirection)
+int deepMove(board* b, const Position &pos, int depth, int &maxDepth, bool returnDirection)
 {
 	int x = pos.x, y = pos.y;
 	int d1 = 0, d2 = 0, d3 = 0, d4 = 0;
 	findAvailableDir(b, d1, d2, d3, d4, x, y);
 
-	if ((d1 | d2 | d3 | d4) == 0 || depth == 50) // terminate condition meets
+	if ((d1 | d2 | d3 | d4) == 0 || depth >= maxDepth) // terminate condition meets
 	{
 		return depth;
 	}
@@ -235,14 +238,14 @@ int deepMove(board* b, const Position &pos, int depth, bool returnDirection)
 	if (d1)
 	{
 		set0AtPos(next, x, y - 1);
-		max = deepMove(next, Position(x, y - 1), depth + 1, false);
+		max = deepMove(next, Position(x, y - 1), depth + 1, maxDepth, false);
 		makeAvaiAtPos(next, x, y - 1);
 	}
 
 	if (d2)
 	{
 		set0AtPos(next, x - 1, y);
-		int v = deepMove(next, Position(x - 1, y), depth + 1, false);
+		int v = deepMove(next, Position(x - 1, y), depth + 1, maxDepth, false);
 		makeAvaiAtPos(next, x - 1, y);
 		if (v > max)
 		{
@@ -254,7 +257,7 @@ int deepMove(board* b, const Position &pos, int depth, bool returnDirection)
 	if (d3)
 	{
 		set0AtPos(next, x, y + 1);
-		int v = deepMove(next, Position(x, y + 1), depth + 1, false);
+		int v = deepMove(next, Position(x, y + 1), depth + 1, maxDepth, false);
 		makeAvaiAtPos(next, x, y + 1);
 		if (v > max)
 		{
@@ -266,7 +269,7 @@ int deepMove(board* b, const Position &pos, int depth, bool returnDirection)
 	if (d4)
 	{
 		set0AtPos(next, x + 1, y);
-		int v = deepMove(next, Position(x + 1, y), depth + 1, false);
+		int v = deepMove(next, Position(x + 1, y), depth + 1, maxDepth, false);
 		makeAvaiAtPos(next, x + 1, y);
 		if (v > max)
 		{
@@ -298,7 +301,7 @@ int abp(board* b, const Position &myPos, const Position &opPos, int depth, int a
 
 	if ((d1 | d2 | d3 | d4) == 0) // terminate condition meets: lost
 	{
-		return -1000 - depth; // better lose 
+		return -1000 - depth; // better lose fast
 	}
 
 	if ((e1 | e2 | e3 | e4) == 0) // terminate condition meets: won
@@ -325,7 +328,7 @@ int abp(board* b, const Position &myPos, const Position &opPos, int depth, int a
 			++callCountPosMoves;
 #endif
 
-			return movableCount > oppMoveCount ? 900 + depth + oppMoveCount : -1000 - depth + movableCount;
+			return movableCount > oppMoveCount ? 900 + depth + movableCount : -900 - depth + oppMoveCount;
 		}
 	}
 
@@ -477,7 +480,7 @@ int evaluateBoard(board* b, const Position& myPos, const Position& opPos, const 
 	//}
 
 	return myMovableCount == opponentMovableCount ?
-		0 : (myMovableCount > opponentMovableCount ? 900 + opponentMovableCount : -1000 + myMovableCount);
+		0 : (myMovableCount > opponentMovableCount ? 900 + myMovableCount : -900 - opponentMovableCount);
 }
 
 /*
@@ -499,7 +502,7 @@ int countMoved(const int* const board)
 		}
 	}
 
-	return moves / 2;
+	return moves;
 }
 
 void simulateMove(int* b, int dir, int &x, int &y)
@@ -767,6 +770,29 @@ int searchBestDirFromBottomRight(int* board, const Position &myPos, int moves)
 int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 {
 	int allMovesCount = countMoved(origBoard);
+	followEnemy = (followEnemy && (allMovesCount & 1)); // follow if enemy move first -> allMovesCount is odd number
+	
+	if (followEnemy && allMovesCount == 3) // init to follow enemy
+	{
+		enemyAtUpper = opPos.x < 5;
+		if (enemyAtUpper)
+		{
+			enemyPrevPos = Position(0, 0);
+		}
+		else
+		{
+			enemyPrevPos = Position(MAP_SIZE - 1, MAP_SIZE - 1);
+		}
+	}
+
+	if (allMovesCount > 22)
+	{
+		// reset
+		followEnemy = true;
+		enemyPrevPos.x = enemyPrevPos.y = -1;
+	}
+
+	allMovesCount /= 2;
 	bool useLogic = allMovesCount <= 10;
 	int depth = 0;
 
@@ -774,11 +800,16 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 	{
 		board *b = copyFrom(origBoard);
 		copyToSearchBoard(b);
-		int posibleMoves = countPosibleMoves(MAP_SIZE - 2, 1);
-		if (posibleMoves < 60) // play board is splitted 2 regions
+		
+		if (origBoard[CONVERT_COORD(4, 5)]/* == BLOCK_OBSTACLE */|| origBoard[CONVERT_COORD(5, 4)]/* == BLOCK_OBSTACLE*/)
 		{
 			useLogic = false;
-			depth = 45;//MAXXY(posibleMoves, MAP_SIZE * MAP_SIZE - 10 - allMovesCount * 2 - 1 - posibleMoves);
+			depth = 40;
+		}
+		if (countPosibleMoves(MAP_SIZE - 2, 1) < 60) // play board is splitted 2 regions
+		{
+			useLogic = false;
+			depth = 45;
 		}
 	}
 
@@ -888,6 +919,46 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 			}
 		}
 
+		if (followEnemy)
+		{
+			// calculate if need to follow enemy
+			if (enemyAtUpper)
+			{
+				// enemy move to the right && we can follow to the left
+				if (enemyPrevPos.x < opPos.x && opPos.x <= 5 && b_cpy[CONVERT_COORD(myPos.x - 1, myPos.y)] == BLOCK_EMPTY) 
+				{
+					enemyPrevPos.x = opPos.x;
+					return DIRECTION_LEFT;
+				}
+				// enemy move down && we can follow up
+				else if (enemyPrevPos.y < opPos.y && opPos.y <= 5 && b_cpy[CONVERT_COORD(myPos.x, myPos.y - 1)] == BLOCK_EMPTY)
+				{
+					enemyPrevPos.y = opPos.y;
+					return DIRECTION_UP;
+				}
+
+				// no need to follow any more if all conditions above not meet
+				followEnemy = false;
+			}
+			else // enemy at lower
+			{
+				// enemy move to the left && we can follow to the right
+				if (opPos.x < enemyPrevPos.x && opPos.x >= 5 && b_cpy[CONVERT_COORD(myPos.x + 1, myPos.y)] == BLOCK_EMPTY)
+				{
+					enemyPrevPos.x = opPos.x;
+					return DIRECTION_RIGHT;
+				}
+				// enemy move up && we can follow down
+				else if (opPos.y < enemyPrevPos.y && opPos.y >= 5 && b_cpy[CONVERT_COORD(myPos.x, myPos.y + 1)] == BLOCK_EMPTY)
+				{
+					enemyPrevPos.y = opPos.y;
+					return DIRECTION_DOWN;
+				}
+
+				// no need to follow any more if all conditions above not meet
+				followEnemy = false;
+			}
+		}
 
 		if (myPos.x == myPos.y)
 		{
@@ -945,17 +1016,18 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 				}
 				else
 				{
-					depth = 45;
+					depth = 42;
 				}
 			}
 			else
 			{
-				printf("-> self move ");
-				direction = deepMove(b, Position(myPos.y, myPos.x), 0, true);
+				int maxDepth = posibleMoves < 49 ? posibleMoves : (MINXY(85 - posibleMoves, 26));
+				printf("-> self move, maxDepth = %d, posibleMoves = %d ", maxDepth, posibleMoves);
+				direction = deepMove(b, Position(myPos.y, myPos.x), 0, maxDepth, true);
 				return direction;
 			}
 		}
-		printf("-> depth = %d ", depth);
+		printf("-> depth = %d, mypos = %d;%d, oppos = %d;%d ", depth, myPos.x, myPos.y, opPos.x, opPos.y);
 		direction = abp(b, Position(myPos.y, myPos.x), Position(opPos.y, opPos.x), depth, MIN_INT, MAX_INT, true, true);
 #if _DEBUG
 		printf("Alloc Count = %d ", allocCount);
