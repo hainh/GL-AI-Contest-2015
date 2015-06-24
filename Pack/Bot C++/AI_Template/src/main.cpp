@@ -89,30 +89,27 @@ void AI_Update()
 #if _DEBUG
 void test()
 {
+	//void main()
+	
+
 	int board_state[] = {
 		2, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0,
 		1, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0,
+		0, 0, 0, 5, 0, 0, 0, 0, 5, 0, 0,
 		0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0,
-		0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 5, 0, 0, 0, 0, 5, 0, 0, 0,
 		0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 3,
 	};//               |
+
 	//extern int evaluateBoard(board* b, const Position& myPos, const Position& opPos);
 	Position myPos = Position(10, 10);
 	Position opPos = Position(0, 1);
-	for (int y = 0; y < MAP_SIZE; ++y)
-	{
-		for (int x = 0; x < MAP_SIZE; ++x)
-		{
-			printf("%d  ", board_state[CONVERT_COORD(x, y)]);
-		}
-		printf("\n\n");
-	}
+	
 
 	while (true)
 	{

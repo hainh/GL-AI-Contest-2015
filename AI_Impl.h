@@ -28,7 +28,7 @@ struct board
 #endif
 };
 
-int countMoves(int x, int y);
+//int countMoves(int x, int y);
 
 void copyToSearchBoard(board* b);
 

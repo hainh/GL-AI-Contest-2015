@@ -63,6 +63,37 @@ inline void sortFour(int &a, int &b, int &c, int &d, int &aa, int &bb, int &cc, 
 	}
 }
 
+void DDALine(int x1, int y1, int x2, int y2, int *board)
+{
+	float dX, dY, iSteps;
+	float xInc, yInc, iCount, x, y;
+
+	dX = x1 - x2;
+	dY = y1 - y2;
+
+	if (fabs(dX) > fabs(dY))
+	{
+		iSteps = fabs(dX);
+	}
+	else
+	{
+		iSteps = fabs(dY);
+	}
+
+	xInc = dX / iSteps;
+	yInc = dY / iSteps;
+
+	x = x1;
+	y = y1;
+
+	for (iCount = 1; iCount <= iSteps; iCount++)
+	{
+		board[CONVERT_COORD((int)floor(x + .5f), (int)floor(y + .5f))] = 7;
+		x -= xInc;
+		y -= yInc;
+	}
+}
+
 inline int atPos(board* &b, int x, int y)
 {
 	return (b->cells[x] & (1 << y));
@@ -328,7 +359,7 @@ int abp(board* b, const Position &myPos, const Position &opPos, int depth, int a
 			++callCountPosMoves;
 #endif
 
-			return movableCount > oppMoveCount ? 900 + depth + movableCount : -900 - depth + oppMoveCount;
+			return movableCount > oppMoveCount ? 900 + depth + oppMoveCount : -900 - depth + movableCount;
 		}
 	}
 
@@ -338,19 +369,41 @@ int abp(board* b, const Position &myPos, const Position &opPos, int depth, int a
 		int dir = 0;
 		int v = -1000000;
 
-		if (!prunned && d1 > 0)
+		bool d1_prior = myPos.y > opPos.y;
+		bool d2_prior = myPos.x > opPos.x;
+
+		if (d1_prior && !prunned && d1 > 0)
 		{
 			moveMe(b, 1, dir, Position(x, y - 1), opPos, v, alpha, beta, depth, prunned);
 		}
-		if (!prunned && d2 > 0)
+		if (d2_prior && !prunned && d2 > 0)
 		{
 			moveMe(b, 2, dir, Position(x - 1, y), opPos, v, alpha, beta, depth, prunned);
 		}
-		if (!prunned && d3 > 0)
+
+		if (!d1_prior && !prunned && d3 > 0)
 		{
 			moveMe(b, 3, dir, Position(x, y + 1), opPos, v, alpha, beta, depth, prunned);
 		}
-		if (!prunned && d4 > 0)
+		if (!d2_prior && !prunned && d4 > 0)
+		{
+			moveMe(b, 4, dir, Position(x + 1, y), opPos, v, alpha, beta, depth, prunned);
+		}
+
+		if (!d1_prior && !prunned && d1 > 0)
+		{
+			moveMe(b, 1, dir, Position(x, y - 1), opPos, v, alpha, beta, depth, prunned);
+		}
+		if (!d2_prior && !prunned && d2 > 0)
+		{
+			moveMe(b, 2, dir, Position(x - 1, y), opPos, v, alpha, beta, depth, prunned);
+		}
+
+		if (d1_prior && !prunned && d3 > 0)
+		{
+			moveMe(b, 3, dir, Position(x, y + 1), opPos, v, alpha, beta, depth, prunned);
+		}
+		if (d2_prior && !prunned && d4 > 0)
 		{
 			moveMe(b, 4, dir, Position(x + 1, y), opPos, v, alpha, beta, depth, prunned);
 		}
@@ -362,19 +415,39 @@ int abp(board* b, const Position &myPos, const Position &opPos, int depth, int a
 		bool prunned = false;
 		int v = 1000000;
 
-		if (e1 > 0)
+		bool e1_prior = myPos.y < opPos.y;
+		bool e2_prior = myPos.x < opPos.x;
+
+		if (e1_prior && !prunned && e1 > 0)
 		{
 			moveOpp(b, myPos, Position(ox, oy - 1), v, alpha, beta, depth, prunned);
 		}
-		if (!prunned && e2 > 0)
+		if (e2_prior && !prunned && e2 > 0)
 		{
 			moveOpp(b, myPos, Position(ox - 1, oy), v, alpha, beta, depth, prunned);
 		}
-		if (!prunned && e3 > 0)
+		if (!e1_prior && !prunned && e3 > 0)
 		{
 			moveOpp(b, myPos, Position(ox, oy + 1), v, alpha, beta, depth, prunned);
 		}
-		if (!prunned && e4 > 0)
+		if (!e2_prior && !prunned && e4 > 0)
+		{
+			moveOpp(b, myPos, Position(ox + 1, oy), v, alpha, beta, depth, prunned);
+		}
+
+		if (!e1_prior && !prunned && e1 > 0)
+		{
+			moveOpp(b, myPos, Position(ox, oy - 1), v, alpha, beta, depth, prunned);
+		}
+		if (!e2_prior && !prunned && e2 > 0)
+		{
+			moveOpp(b, myPos, Position(ox - 1, oy), v, alpha, beta, depth, prunned);
+		}
+		if (e1_prior && !prunned && e3 > 0)
+		{
+			moveOpp(b, myPos, Position(ox, oy + 1), v, alpha, beta, depth, prunned);
+		}
+		if (e2_prior && !prunned && e4 > 0)
 		{
 			moveOpp(b, myPos, Position(ox + 1, oy), v, alpha, beta, depth, prunned);
 		}
@@ -480,7 +553,7 @@ int evaluateBoard(board* b, const Position& myPos, const Position& opPos, const 
 	//}
 
 	return myMovableCount == opponentMovableCount ?
-		0 : (myMovableCount > opponentMovableCount ? 900 + myMovableCount : -900 - opponentMovableCount);
+		0 : (myMovableCount > opponentMovableCount ? 900 + opponentMovableCount : -900 + myMovableCount);
 }
 
 /*
@@ -793,7 +866,7 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 	}
 
 	allMovesCount /= 2;
-	bool useLogic = allMovesCount <= 10;
+	bool useLogic = allMovesCount <= 9;
 	int depth = 0;
 
 	if (useLogic && allMovesCount >= 9)
@@ -801,15 +874,26 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 		board *b = copyFrom(origBoard);
 		copyToSearchBoard(b);
 		
-		if (origBoard[CONVERT_COORD(4, 5)]/* == BLOCK_OBSTACLE */|| origBoard[CONVERT_COORD(5, 4)]/* == BLOCK_OBSTACLE*/)
-		{
-			useLogic = false;
-			depth = 40;
-		}
-		if (countPosibleMoves(MAP_SIZE - 2, 1) < 60) // play board is splitted 2 regions
+		if (origBoard[CONVERT_COORD(4, 5)] == BLOCK_OBSTACLE || origBoard[CONVERT_COORD(5, 4)] == BLOCK_OBSTACLE)
 		{
 			useLogic = false;
 			depth = 45;
+		}
+		else if (countPosibleMoves(MAP_SIZE - 2, 1) < 60) // play board is splitted 2 regions
+		{
+			useLogic = false;
+			depth = 45;
+		}
+		else
+		{
+			bool upper = origBoard[0] == origBoard[CONVERT_COORD(myPos.x, myPos.y)]
+				|| origBoard[0] == origBoard[CONVERT_COORD(myPos.x, myPos.y)] + 1;
+			if (allMovesCount == 10 && ((upper && opPos.x == 6 && opPos.y == 6) || (!upper && opPos.x == 4 && opPos.y == 4)))
+			{
+				printf("checking ola, upper = %d, mypos = %d;%d, opPos = %d;%d ", upper, myPos.x, myPos.y, opPos.x, opPos.y);
+				useLogic = false;
+				depth = 35;
+			}
 		}
 	}
 
@@ -823,22 +907,28 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 		bool criticalLower = (myPos.x == 6 && myPos.y == 6 && origBoard[CONVERT_COORD(6, 5)] == BLOCK_EMPTY && origBoard[CONVERT_COORD(5, 6)] == BLOCK_EMPTY)
 			|| (myPos.x == 7 && myPos.y == 7 && origBoard[CONVERT_COORD(6, 6)] != BLOCK_EMPTY && origBoard[CONVERT_COORD(6, 7)] == BLOCK_EMPTY && origBoard[CONVERT_COORD(7, 6)] == BLOCK_EMPTY);
 
+		int b_cpy[MAP_SIZE*MAP_SIZE];
+		memcpy(b_cpy, origBoard, sizeof(b_cpy));
+
 		if (criticalLower || criticalUpper)
 		{
 			int countEmptyUpper = 0, countEmptyLower = 0;
-			for (int x = 0; x < MAP_SIZE; ++x)
+			// draw a line to separate the playing board
+			DDALine(myPos.x, myPos.y, opPos.x, opPos.y, b_cpy);
+			board* board_cpy = copyFrom(b_cpy);
+			copyToSearchBoard(board_cpy);
+			
+			countEmptyUpper = countPosibleMoves(1, MAP_SIZE - 2); // use algorithm coordinate
+			countEmptyLower = countPosibleMoves(MAP_SIZE - 2, 1);
+
+			printf("critical up = %d, low = %d\n", countEmptyUpper, countEmptyLower);
+			for (int y = 0; y < MAP_SIZE; ++y)
 			{
-				for (int y = 0; y < MAP_SIZE; ++y)
+				for (int x = 0; x < MAP_SIZE; ++x)
 				{
-					if (x < y && origBoard[CONVERT_COORD(x, y)] == BLOCK_EMPTY)
-					{
-						++countEmptyLower;
-					}
-					else if (x > y && origBoard[CONVERT_COORD(x, y)] == BLOCK_EMPTY)
-					{
-						++countEmptyUpper;
-					}
+					printf("%d  ", b_cpy[CONVERT_COORD(x, y)]);
 				}
+				printf("\n\n");
 			}
 
 			if (criticalUpper)
@@ -858,9 +948,6 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 				return DIRECTION_UP;
 			}
 		}
-
-		int b_cpy[MAP_SIZE*MAP_SIZE];
-		memcpy(b_cpy, origBoard, sizeof(b_cpy));
 
 		//for (int y = 0; y < MAP_SIZE; ++y)
 		//{
@@ -892,11 +979,14 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 		//}
 
 		// Patch dead position (cannot move forward if stand on this position)
+		for (int k = 0; k < 3; ++k)
+		{
+
 		if (upper)
 		{
-			for (int x = 5; x > 0; --x)
+			for (int x = MAP_SIZE - 1; x >= 1; --x)
 			{
-				for (int y = 5; y > 0; --y)
+				for (int y = MAP_SIZE - 2; y >= 0; --y)
 				{
 					if (b_cpy[CONVERT_COORD(x, y)] && b_cpy[CONVERT_COORD(x - 1, y + 1)])
 					{
@@ -907,9 +997,9 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 		}
 		else
 		{
-			for (int x = 6; x < MAP_SIZE - 1; ++x)
+			for (int x = 0; x < MAP_SIZE - 2; ++x)
 			{
-				for (int y = 6; y < MAP_SIZE - 1; ++y)
+				for (int y = 1; y < MAP_SIZE - 1; ++y)
 				{
 					if (b_cpy[CONVERT_COORD(x, y)] && b_cpy[CONVERT_COORD(x + 1, y - 1)])
 					{
@@ -917,6 +1007,7 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 					}
 				}
 			}
+		}
 		}
 
 		if (followEnemy)
@@ -1014,14 +1105,18 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 				{
 					depth = posibleMoves;
 				}
+				else if (posibleMoves < 70)
+				{
+					depth = 55;
+				}
 				else
 				{
-					depth = 42;
+					depth = 45;// 37;
 				}
 			}
 			else
 			{
-				int maxDepth = posibleMoves < 49 ? posibleMoves : (MINXY(85 - posibleMoves, 26));
+				int maxDepth = posibleMoves < 49 ? posibleMoves : (MINXY(80 - posibleMoves, 26));
 				printf("-> self move, maxDepth = %d, posibleMoves = %d ", maxDepth, posibleMoves);
 				direction = deepMove(b, Position(myPos.y, myPos.x), 0, maxDepth, true);
 				return direction;
