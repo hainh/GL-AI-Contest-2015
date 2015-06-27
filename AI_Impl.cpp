@@ -19,11 +19,14 @@ inline void reclaimBoards(board* b);
 #endif
 
 int searchBoard[MAP_SIZE][MAP_SIZE];
+board* originSearchBoard = nullptr;
+int stuckPosCount;
+
 bool followEnemy = true;
 bool enemyAtUpper = false;
 Position enemyPrevPos(-1, -1);
 
-int countPosibleMoves(int x, int y);
+int countPosibleMoves(int x, int y, const bool &nonRecursiveCall);
 void copyToSearchBoard(board* b);
 
 inline void sortFour(int &a, int &b, int &c, int &d, int &aa, int &bb, int &cc, int &dd)
@@ -206,8 +209,27 @@ board* copyFrom(int* b)
 }
 
 // AI implementation //
-/*Heuristic function:*/
-//int countPosibleMoves(board* b, int x, int y);
+
+inline bool isStuckPosition(board* &b, const int &x, const int &y)
+{
+	bool d1 = y > 0 && atPos(b, x, y - 1);
+	bool d2 = x > 0 && atPos(b, x - 1, y);
+
+	bool notStuck = d1 && d2;
+	if (notStuck) return false;
+
+	bool d3 = y < MAP_SIZE - 1 && atPos(b, x, y + 1);
+
+	notStuck = (d1 || d2) && d3;
+	if (notStuck) return false;
+
+	bool d4 = x < MAP_SIZE - 1 && atPos(b, x + 1, y);
+	
+	notStuck = (d1 || d2 || d3) && d4;
+	if (notStuck) return false;
+
+	return true;
+}
 
 /*Heuristic function:*/
 inline int evaluateBoard(board* b, const Position& myPos, const Position& opPos, const bool & maximizePlayer);
@@ -340,26 +362,42 @@ int abp(board* b, const Position &myPos, const Position &opPos, int depth, int a
 		return 1000 + depth; // better win fast
 	}
 
-	if ((depth % 2 /*& 0x03*/) == 0) // depth % 4 == 0
+	if (!(x == ox && (y - oy == 1 || oy - y == 1)) && !(y == oy && (x - ox == 1 || ox - x == 1)))
 	{
 		copyToSearchBoard(b);
 
 		searchBoard[x][y] = 0;
 		searchBoard[ox][oy] = 2;
 
-		int movableCount = countPosibleMoves(myPos.x, myPos.y);
+		int movableCount = countPosibleMoves(x, y, true);
 #if _DEBUG
 		++callCountPosMoves;
 #endif
 		if (movableCount > 0)
 		{
 			searchBoard[ox][oy] = 0;
-			int oppMoveCount = countPosibleMoves(opPos.x, opPos.y);
+			int oppMoveCount = countPosibleMoves(ox, oy, true);
 #if _DEBUG
 			++callCountPosMoves;
 #endif
+			// Optim 1
+			int k = movableCount - oppMoveCount;
+			if (k >= 10 || k <= -10)
+			{
+				int ret = movableCount >= oppMoveCount ? 900 + depth + movableCount : -900 - depth - oppMoveCount;
+				return ret;
+			}
+			else if (movableCount <= 40 && oppMoveCount <= 40)
+			{
 
-			return movableCount > oppMoveCount ? 900 + depth + oppMoveCount : -900 - depth + movableCount;
+			}
+
+
+			// Optim 2
+			//if (movableCount - 3 > oppMoveCount || movableCount < oppMoveCount)
+			//{
+			//	return movableCount > oppMoveCount ? 900 + depth + oppMoveCount : -900 - depth + movableCount;
+			//}
 		}
 	}
 
@@ -458,6 +496,7 @@ int abp(board* b, const Position &myPos, const Position &opPos, int depth, int a
 
 void copyToSearchBoard(board* b)
 {
+	originSearchBoard = b;
 	for (int i = 0; i < MAP_SIZE; ++i)
 	{
 		for (int j = 0; j < MAP_SIZE; ++j)
@@ -470,8 +509,17 @@ void copyToSearchBoard(board* b)
 /*
 Count all posible moves if one player's position is (x, y) using deep-first search algorithm
 */
-int countPosibleMoves(int x, int y)
+int countPosibleMoves(int x, int y, const bool &nonRecursiveCall)
 {
+	if (nonRecursiveCall)
+	{
+		stuckPosCount = 0;
+	}
+	else if (isStuckPosition(originSearchBoard, x, y))
+	{
+		++stuckPosCount;
+	}
+
 	int count = 0;
 
 	// Found opponent
@@ -480,28 +528,50 @@ int countPosibleMoves(int x, int y)
 		count = POSITIVE;
 	}
 
+
 	searchBoard[x][y] = 0;
 	if (x > 0 && searchBoard[x - 1][y])
 	{
 		++count;
-		count += countPosibleMoves(x - 1, y);
+		count += countPosibleMoves(x - 1, y, false);
+		if (nonRecursiveCall && isStuckPosition(originSearchBoard, x - 1, y))
+		{
+			--stuckPosCount;
+		}
 	}
 
 	if (y > 0 && searchBoard[x][y - 1])
 	{
 		++count;
-		count += countPosibleMoves(x, y - 1);
+		count += countPosibleMoves(x, y - 1, false);
+		if (nonRecursiveCall && isStuckPosition(originSearchBoard, x, y - 1))
+		{
+			--stuckPosCount;
+		}
 	}
 	if (y < MAP_SIZE - 1 && searchBoard[x][y + 1])
 	{
 		++count;
-		count += countPosibleMoves(x, y + 1);
+		count += countPosibleMoves(x, y + 1, false);
+		if (nonRecursiveCall && isStuckPosition(originSearchBoard, x, y + 1))
+		{
+			--stuckPosCount;
+		}
 	}
 
 	if (x < MAP_SIZE - 1 && searchBoard[x + 1][y])
 	{
 		++count;
-		count += countPosibleMoves(x + 1, y);
+		count += countPosibleMoves(x + 1, y, false);
+		if (nonRecursiveCall && isStuckPosition(originSearchBoard, x + 1, y))
+		{
+			--stuckPosCount;
+		}
+	}
+
+	if (nonRecursiveCall)
+	{
+		return stuckPosCount > 0 ? count - (stuckPosCount - 1) : count;
 	}
 
 	return count;
@@ -513,7 +583,7 @@ int evaluateBoard(board* b, const Position& myPos, const Position& opPos, const 
 	searchBoard[myPos.x][myPos.y] = 0;
 	searchBoard[opPos.x][opPos.y] = 2;
 
-	int myMovableCount = countPosibleMoves(myPos.x, myPos.y);
+	int myMovableCount = countPosibleMoves(myPos.x, myPos.y, true);
 
 #if _DEBUG
 	++callCountPosMoves;
@@ -534,7 +604,7 @@ int evaluateBoard(board* b, const Position& myPos, const Position& opPos, const 
 	}
 
 	searchBoard[opPos.x][opPos.y] = 0;
-	int opponentMovableCount = countPosibleMoves(opPos.x, opPos.y);
+	int opponentMovableCount = countPosibleMoves(opPos.x, opPos.y, true);
 
 #if _DEBUG
 	++callCountPosMoves;
@@ -553,7 +623,7 @@ int evaluateBoard(board* b, const Position& myPos, const Position& opPos, const 
 	//}
 
 	return myMovableCount == opponentMovableCount ?
-		0 : (myMovableCount > opponentMovableCount ? 900 + opponentMovableCount : -900 + myMovableCount);
+		0 : (myMovableCount > opponentMovableCount ? 800 + myMovableCount: -800 - opponentMovableCount);
 }
 
 /*
@@ -843,7 +913,7 @@ int searchBestDirFromBottomRight(int* board, const Position &myPos, int moves)
 int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 {
 	int allMovesCount = countMoved(origBoard);
-	followEnemy = (followEnemy && (allMovesCount & 1)); // follow if enemy move first -> allMovesCount is odd number
+	followEnemy = (followEnemy && (allMovesCount & 1)) && false; // follow if enemy move first -> allMovesCount is odd number
 	
 	if (followEnemy && allMovesCount == 3) // init to follow enemy
 	{
@@ -879,7 +949,7 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 			useLogic = false;
 			depth = 45;
 		}
-		else if (countPosibleMoves(MAP_SIZE - 2, 1) < 60) // play board is splitted 2 regions
+		else if (countPosibleMoves(MAP_SIZE - 2, 1, true) < 60) // play board is splitted 2 regions
 		{
 			useLogic = false;
 			depth = 45;
@@ -918,8 +988,8 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 			board* board_cpy = copyFrom(b_cpy);
 			copyToSearchBoard(board_cpy);
 			
-			countEmptyUpper = countPosibleMoves(1, MAP_SIZE - 2); // use algorithm coordinate
-			countEmptyLower = countPosibleMoves(MAP_SIZE - 2, 1);
+			countEmptyUpper = countPosibleMoves(1, MAP_SIZE - 2, true); // use algorithm coordinate
+			countEmptyLower = countPosibleMoves(MAP_SIZE - 2, 1, true);
 
 			printf("critical up = %d, low = %d\n", countEmptyUpper, countEmptyLower);
 			for (int y = 0; y < MAP_SIZE; ++y)
@@ -1089,7 +1159,7 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 			copyToSearchBoard(b);
 			searchBoard[myPos.y][myPos.x] = 0;
 			searchBoard[opPos.y][opPos.x] = 2;
-			int posibleMoves = countPosibleMoves(myPos.y, myPos.x);
+			int posibleMoves = countPosibleMoves(myPos.y, myPos.x, true);
 			if (posibleMoves < 0)
 			{
 				// Reconstruct my moves
@@ -1101,17 +1171,17 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 					depth = posibleMoves;
 				}
 
-				if (posibleMoves < 60)
+				if (posibleMoves < 55)
 				{
 					depth = posibleMoves;
 				}
 				else if (posibleMoves < 70)
 				{
-					depth = 55;
+					depth = 50;
 				}
 				else
 				{
-					depth = 45;// 37;
+					depth = 40;// 37;
 				}
 			}
 			else

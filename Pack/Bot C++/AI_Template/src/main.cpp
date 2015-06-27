@@ -28,7 +28,6 @@
 //   + A player will lose if they don't make a valid move within 3 seconds          //
 //////////////////////////////////////////////////////////////////////////////////////
 
-int moveCount = 50;
 
 // This function is called automatically when it's your turn.
 // Remember to call AI_Move() with a valid move before the time is run out.
@@ -44,25 +43,6 @@ void AI_Update()
 	Position enemyPos = p_ai->GetEnemyPosition();
 
 	int direction = AiMove(_board, myPos, enemyPos);
-
-	//int direction = 0;
-	//if (moveCount < 4)
-	//{
-	//	++moveCount;
-	//	if (myPos.x < 5)
-	//	{
-	//		direction = DIRECTION_RIGHT;
-	//	}
-	//	else
-	//	{
-	//		direction = DIRECTION_LEFT;
-	//	}
-	//}
-	//else
-	//{
-	//	board *b = copyFrom(_board);
-	//	direction = abp(b, Position(myPos.y, myPos.x), Position(enemyPos.y, enemyPos.x), 20, MIN_INT, MAX_INT, true, true);
-	//}
 
 	if(direction)
 	{
@@ -93,23 +73,31 @@ void test()
 	
 
 	int board_state[] = {
-		2, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0,
-		1, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0,
-		0, 0, 0, 5, 0, 0, 0, 0, 5, 0, 0,
-		0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0,
+		2, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0,
+		2, 2, 0, 0, 5, 0, 0, 0, 0, 0, 0,
+		0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0,
+		0, 5, 5, 2, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 2, 2, 1, 0, 0, 5, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0,
-		0, 0, 5, 0, 0, 0, 0, 5, 0, 0, 0,
-		0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 3,
+		0, 0, 5, 0, 0, 0, 4, 3, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 4, 0, 5, 5, 0,
+		0, 0, 0, 0, 0, 0, 4, 4, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 5, 4, 0, 0, 0,
+		0, 0, 0, 0, 0, 5, 0, 4, 4, 4, 4,
 	};//               |
 
 	//extern int evaluateBoard(board* b, const Position& myPos, const Position& opPos);
-	Position myPos = Position(10, 10);
-	Position opPos = Position(0, 1);
+	Position myPos = Position(5, 4);
+	Position opPos = Position(7, 6);
 	
+	for (int y = 0; y < MAP_SIZE; ++y)
+	{
+		for (int x = 0; x < MAP_SIZE; ++x)
+		{
+			printf("%d  ", board_state[CONVERT_COORD(x, y)]);
+		}
+		printf("\n\n");
+	}
 
 	while (true)
 	{
@@ -122,7 +110,7 @@ void test()
 		GetSystemTimeAsFileTime(&ft_now);
 		LONGLONG ll_now2 = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
 		printf("\ntime = %lld, dir = %d\n", (ll_now2 - ll_now) / 10000, dir);
-		board_state[CONVERT_COORD(myPos.x, myPos.y)] = BLOCK_PLAYER_2_TRAIL;
+		board_state[CONVERT_COORD(myPos.x, myPos.y)] = BLOCK_PLAYER_1_TRAIL;
 		switch (dir)
 		{
 		case 1:
@@ -140,7 +128,7 @@ void test()
 		default:
 			break;
 		}
-		board_state[CONVERT_COORD(myPos.x, myPos.y)] = BLOCK_PLAYER_2;
+		board_state[CONVERT_COORD(myPos.x, myPos.y)] = BLOCK_PLAYER_1;
 		for (int y = 0; y < MAP_SIZE; ++y)
 		{
 			for (int x = 0; x < MAP_SIZE; ++x)
@@ -159,7 +147,7 @@ void test()
 		}
 		while (charCode != 'a' && charCode != 's' && charCode != 'd' && charCode != 'w');
 		
-		board_state[CONVERT_COORD(opPos.x, opPos.y)] = BLOCK_PLAYER_1_TRAIL;
+		board_state[CONVERT_COORD(opPos.x, opPos.y)] = BLOCK_PLAYER_2_TRAIL;
 		switch (charCode)
 		{
 		case 'a':
@@ -177,7 +165,7 @@ void test()
 		default:
 			break;
 		}
-		board_state[CONVERT_COORD(opPos.x, opPos.y)] = BLOCK_PLAYER_1;
+		board_state[CONVERT_COORD(opPos.x, opPos.y)] = BLOCK_PLAYER_2;
 		for (int y = 0; y < MAP_SIZE; ++y)
 		{
 			for (int x = 0; x < MAP_SIZE; ++x)
@@ -240,8 +228,6 @@ void test()
 
 int main(int argc, char* argv[])
 {
-	initBoards();
-
 #if _DEBUG
 	test();
 #endif
