@@ -28,6 +28,34 @@ struct board
 #endif
 };
 
+struct MyStack
+{
+	int data[256];
+	int top;
+
+	inline MyStack()
+	{
+		top = 0;
+	}
+
+	inline void push(int val)
+	{
+		data[top] = val;
+		++top;
+	}
+
+	inline int pop()
+	{
+		--top;
+		return data[top];
+	}
+
+	inline bool empty()
+	{
+		return top <= 0;
+	}
+};
+
 //int countMoves(int x, int y);
 
 void copyToSearchBoard(board* b);

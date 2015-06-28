@@ -66,29 +66,57 @@ void AI_Update()
 	printf("time = %lld\n", (ll_now2 - ll_now) / 10000);
 }
 
-#if _DEBUG
+#if !_DEBUG
 void test()
 {
 	//void main()
 	
 
 	int board_state[] = {
-		2, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0,
-		2, 2, 0, 0, 5, 0, 0, 0, 0, 0, 0,
-		0, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0,
-		0, 5, 5, 2, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 2, 2, 1, 0, 0, 5, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 5, 0, 0, 0, 4, 3, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 4, 0, 5, 5, 0,
-		0, 0, 0, 0, 0, 0, 4, 4, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 5, 4, 0, 0, 0,
-		0, 0, 0, 0, 0, 5, 0, 4, 4, 4, 4,
+		1, 0, 0, 0, 5, 0, 0, 5, 0, 5, 5,
+		0, 0, 0, 0, 5, 0, 5, 0, 0, 5, 5,
+		0, 0, 0, 0, 0, 5, 0, 0, 5, 5, 5,
+		0, 0, 0, 0, 0, 5, 5, 5, 5, 5, 5,
+		0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 5, 5, 5, 5, 0, 5,
+		5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 5,
+		0, 0, 0, 0, 0, 0, 5, 5, 3, 5, 5,
+		5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+		5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
 	};//               |
+	extern int deepMoveDfsIterative(board* b, const Position &pos);
+	extern int deepMove(board* b, const Position &pos, int depth, const int &maxDepth, bool returnDirection);
+
+	auto b = copyFrom(board_state);
+
+	for (int i = 0; i < 15; ++i)
+	{
+
+		FILETIME now;
+		GetSystemTimeAsFileTime(&now);
+		LONGLONG now1 = (LONGLONG)now.dwLowDateTime + ((LONGLONG)(now.dwHighDateTime) << 32LL);
+
+		int maxDepth = deepMoveDfsIterative(b, Position(8, 8));
+
+		GetSystemTimeAsFileTime(&now);
+		LONGLONG now2 = (LONGLONG)now.dwLowDateTime + ((LONGLONG)(now.dwHighDateTime) << 32LL);
+
+		int maxDepth2 = deepMove(b, Position(8, 8), 0, 60, false);
+
+		GetSystemTimeAsFileTime(&now);
+		LONGLONG now3 = (LONGLONG)now.dwLowDateTime + ((LONGLONG)(now.dwHighDateTime) << 32LL);
+
+		printf("Max Depth iterative = %d, time = %lld\n", maxDepth, now2 - now1);
+		printf("Max Depth recursive = %d, time = %lld\n", maxDepth2, now3 - now2);
+		printf("Ratio iterative/recursive = %f\n", (now2 - now1) / (float)(now3 - now2));
+	}
+
+	getchar();
 
 	//extern int evaluateBoard(board* b, const Position& myPos, const Position& opPos);
-	Position myPos = Position(5, 4);
-	Position opPos = Position(7, 6);
+	Position myPos = Position(0, 0);
+	Position opPos = Position(8, 8);
 	
 	for (int y = 0; y < MAP_SIZE; ++y)
 	{
@@ -109,7 +137,7 @@ void test()
 
 		GetSystemTimeAsFileTime(&ft_now);
 		LONGLONG ll_now2 = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
-		printf("\ntime = %lld, dir = %d\n", (ll_now2 - ll_now) / 10000, dir);
+		printf("Player1: time = %lld, dir = %d\n", (ll_now2 - ll_now) / 10000, dir);
 		board_state[CONVERT_COORD(myPos.x, myPos.y)] = BLOCK_PLAYER_1_TRAIL;
 		switch (dir)
 		{
@@ -138,34 +166,65 @@ void test()
 			printf("\n\n");
 		}
 
-		int charCode = 0;
-		do
-		{
-			printf("Your move: ");
-			charCode = getchar();
-			while (getchar() != '\n'){}
-		}
-		while (charCode != 'a' && charCode != 's' && charCode != 'd' && charCode != 'w');
-		
+		//int charCode = 0;
+		//do
+		//{
+		//	printf("Your move: ");
+		//	charCode = getchar();
+		//	while (getchar() != '\n'){}
+		//}
+		//while (charCode != 'a' && charCode != 's' && charCode != 'd' && charCode != 'w');
+		//board_state[CONVERT_COORD(opPos.x, opPos.y)] = BLOCK_PLAYER_2_TRAIL;
+		//switch (charCode)
+		//{
+		//case 'a':
+		//	opPos.x--;
+		//	break;
+		//case 'w':
+		//	opPos.y--;
+		//	break;
+		//case 'd':
+		//	opPos.x++;
+		//	break;
+		//case 's':
+		//	opPos.y++;
+		//	break;
+		//default:
+		//	break;
+		//}
+		//board_state[CONVERT_COORD(opPos.x, opPos.y)] = BLOCK_PLAYER_2;
+
+		printf("Press Enter to move next ");
+		while (getchar() != '\n');
+
+		GetSystemTimeAsFileTime(&ft_now);
+		ll_now = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
+
+		dir = AiMove(board_state, opPos, myPos);
+
+		GetSystemTimeAsFileTime(&ft_now);
+		ll_now2 = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
+		printf("Player2: time = %lld, dir = %d\n", (ll_now2 - ll_now) / 10000, dir);
 		board_state[CONVERT_COORD(opPos.x, opPos.y)] = BLOCK_PLAYER_2_TRAIL;
-		switch (charCode)
+		switch (dir)
 		{
-		case 'a':
+		case 1:
 			opPos.x--;
 			break;
-		case 'w':
+		case 2:
 			opPos.y--;
 			break;
-		case 'd':
+		case 3:
 			opPos.x++;
 			break;
-		case 's':
+		case 4:
 			opPos.y++;
 			break;
 		default:
 			break;
 		}
 		board_state[CONVERT_COORD(opPos.x, opPos.y)] = BLOCK_PLAYER_2;
+
 		for (int y = 0; y < MAP_SIZE; ++y)
 		{
 			for (int x = 0; x < MAP_SIZE; ++x)
@@ -176,50 +235,69 @@ void test()
 		}
 	}
 
-	//int move = 2;
-	//for (int i = 0; i < 10; ++i)
-	//{
-	//	++move;
-	//	FILETIME ft_now;
-	//	GetSystemTimeAsFileTime(&ft_now);
-	//	board* b = copyFrom(board_state);
-	//	std::swap(myPos.x, myPos.y);
-	//	int dir = abp(b, myPos, Position(5, 5), 35, MIN_INT, MAX_INT, true, true);
-	//	std::swap(myPos.x, myPos.y);
-	//	FILETIME ft_now2;
-	//	GetSystemTimeAsFileTime(&ft_now2);
-	//	LONGLONG ll_now = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
-	//	LONGLONG ll_now2 = (LONGLONG)ft_now2.dwLowDateTime + ((LONGLONG)(ft_now2.dwHighDateTime) << 32LL);
-	//	printf("\ntime = %lld, dir = %d\n", (ll_now2 - ll_now) / 10000, dir);
-	//	switch (dir)
-	//	{
-	//	case 1:
-	//		myPos.x--;
-	//		break;
-	//	case 2:
-	//		myPos.y--;
-	//		break;
-	//	case 3:
-	//		myPos.x++;
-	//		break;
-	//	case 4:
-	//		myPos.y++;
-	//		break;
-	//	default:
-	//		break;
-	//	}
-	//	board_state[CONVERT_COORD(myPos.x, myPos.y)] = move;
-	//	for (int y = 0; y < MAP_SIZE; ++y)
-	//	{
-	//		for (int x = 0; x < MAP_SIZE; ++x)
-	//		{
-	//			printf("%02d ", board_state[CONVERT_COORD(x, y)]);
-	//		}
-	//		printf("\n");
-	//	}
-	//}
-	//getchar();
 }
+
+int recursive1(int k)
+{
+	if (k == 1)
+	{
+		return 1;
+	}
+
+	if (k == 2)
+	{
+		return 2;
+	}
+
+	return recursive1(k - 2);
+}
+
+int nonRecursive1(int k)
+{
+	for (int i = k; i > 0; i -= 2)
+	{
+		if (k == 1)
+		{
+			return 1;
+		}
+		if (k == 2)
+		{
+			return 2;
+		}
+	}
+}
+
+void test2()
+{
+	char buf[10];
+
+	gets(buf);
+
+	int k = atoi(buf);
+
+	FILETIME ft_now;
+	GetSystemTimeAsFileTime(&ft_now);
+	LONGLONG ll_now = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
+
+	nonRecursive1(k);
+
+	GetSystemTimeAsFileTime(&ft_now);
+	LONGLONG ll_now2 = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
+
+	printf("Use for loop t = %lld\n", ll_now2 - ll_now);
+
+	GetSystemTimeAsFileTime(&ft_now);
+	ll_now = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
+
+	recursive1(k);
+
+	GetSystemTimeAsFileTime(&ft_now);
+	ll_now2 = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
+
+	printf("Use recursive t = %lld\n", ll_now2 - ll_now);
+	getchar();
+}
+
 #endif
 
 ////////////////////////////////////////////////////////////
@@ -228,7 +306,7 @@ void test()
 
 int main(int argc, char* argv[])
 {
-#if _DEBUG
+#if !_DEBUG
 	test();
 #endif
 
