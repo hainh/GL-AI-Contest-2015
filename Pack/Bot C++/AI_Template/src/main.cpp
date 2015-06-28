@@ -66,7 +66,11 @@ void AI_Update()
 	printf("time = %lld\n", (ll_now2 - ll_now) / 10000);
 }
 
-#if !_DEBUG
+#if _DEBUG
+extern int deepMoveDfsIterative(board* b, const Position &pos);
+extern int deepMove(board* b, int x, int y, int depth, const int maxDepth, bool returnDirection);
+int deepMove_ia(unsigned int* b, int x, int y, int depth, int maxDepth, bool returnDirection);
+
 void test()
 {
 	//void main()
@@ -76,7 +80,7 @@ void test()
 		1, 0, 0, 0, 5, 0, 0, 5, 0, 5, 5,
 		0, 0, 0, 0, 5, 0, 5, 0, 0, 5, 5,
 		0, 0, 0, 0, 0, 5, 0, 0, 5, 5, 5,
-		0, 0, 0, 0, 0, 5, 5, 5, 5, 5, 5,
+		0, 0, 5, 0, 0, 5, 5, 5, 5, 5, 5,
 		0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 5, 5, 5, 5, 0, 5,
 		5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -85,33 +89,38 @@ void test()
 		5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
 		5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
 	};//               |
-	extern int deepMoveDfsIterative(board* b, const Position &pos);
-	extern int deepMove(board* b, const Position &pos, int depth, const int &maxDepth, bool returnDirection);
 
 	auto b = copyFrom(board_state);
+	unsigned int* rBoard = b->cells;
 
-	for (int i = 0; i < 15; ++i)
+	float total = 0;
+	system("pause");
+
+	for (int i = 0; i < 45; ++i)
 	{
 
 		FILETIME now;
 		GetSystemTimeAsFileTime(&now);
 		LONGLONG now1 = (LONGLONG)now.dwLowDateTime + ((LONGLONG)(now.dwHighDateTime) << 32LL);
 
-		int maxDepth = deepMoveDfsIterative(b, Position(8, 8));
+		int maxDepth = deepMove_ia(rBoard, 8, 8, 0, 100, false);
 
 		GetSystemTimeAsFileTime(&now);
 		LONGLONG now2 = (LONGLONG)now.dwLowDateTime + ((LONGLONG)(now.dwHighDateTime) << 32LL);
 
-		int maxDepth2 = deepMove(b, Position(8, 8), 0, 60, false);
+		int maxDepth2 = deepMove(b, 8, 8, 0, 100, false);
 
 		GetSystemTimeAsFileTime(&now);
 		LONGLONG now3 = (LONGLONG)now.dwLowDateTime + ((LONGLONG)(now.dwHighDateTime) << 32LL);
 
-		printf("Max Depth iterative = %d, time = %lld\n", maxDepth, now2 - now1);
-		printf("Max Depth recursive = %d, time = %lld\n", maxDepth2, now3 - now2);
-		printf("Ratio iterative/recursive = %f\n", (now2 - now1) / (float)(now3 - now2));
+		//printf("Max Depth iterative = %d, time = %lld\n", maxDepth, now2 - now1);
+		//printf("Max Depth recursive = %d, time = %lld\n", maxDepth2, now3 - now2);
+		float rate = (now2 - now1) / (float)(now3 - now2);
+		//printf("Ratio iterative/recursive = %f\n", rate);
+		total += rate;
 	}
 
+	printf("end test, rate = %f", total / 45);
 	getchar();
 
 	//extern int evaluateBoard(board* b, const Position& myPos, const Position& opPos);
@@ -237,34 +246,88 @@ void test()
 
 }
 
-int recursive1(int k)
+inline int atPos_ia(unsigned int* b, int x, int y)
 {
-	if (k == 1)
-	{
-		return 1;
-	}
-
-	if (k == 2)
-	{
-		return 2;
-	}
-
-	return recursive1(k - 2);
+	return (b[x] & (1 << y));
 }
 
-int nonRecursive1(int k)
+inline void set0AtPos_ia(unsigned int* b, int x, int y)
 {
-	for (int i = k; i > 0; i -= 2)
+	b[x] = b[x] & (~(1 << y));
+}
+
+inline void makeAvaiAtPos_ia(unsigned int* b, int x, int y)
+{
+	b[x] = b[x] | (1 << y);
+}
+
+inline void findAvailableDir_ia(unsigned int* b, int &d1, int &d2, int &d3, int &d4, int x, int y)
+{
+	d1 = y > 0 ? (atPos_ia(b, x, y - 1) == 0 ? 0 : 1) : 0;
+	d2 = x > 0 ? (atPos_ia(b, x - 1, y) == 0 ? 0 : 2) : 0;
+	d3 = y < MAP_SIZE - 1 ? (atPos_ia(b, x, y + 1) == 0 ? 0 : 3) : 0;
+	d4 = x < MAP_SIZE - 1 ? (atPos_ia(b, x + 1, y) == 0 ? 0 : 4) : 0;
+}
+
+int deepMove_ia(unsigned int* b, int x, int y, int depth, int maxDepth, bool returnDirection)
+{
+	int d1 = 0, d2 = 0, d3 = 0, d4 = 0;
+	findAvailableDir_ia(b, d1, d2, d3, d4, x, y);
+
+	if ((d1 | d2 | d3 | d4) == 0 || depth >= maxDepth) // terminate condition meets
 	{
-		if (k == 1)
+		return depth;
+	}
+
+	int max = -1;
+	int dir = 1;
+
+	if (d1)
+	{
+		set0AtPos_ia(b, x, y - 1);
+		max = deepMove_ia(b, x, y - 1, depth + 1, maxDepth, false);
+		makeAvaiAtPos_ia(b, x, y - 1);
+	}
+
+	if (d2)
+	{
+		set0AtPos_ia(b, x - 1, y);
+		int v = deepMove_ia(b, x - 1, y, depth + 1, maxDepth, false);
+		makeAvaiAtPos_ia(b, x - 1, y);
+		if (v > max)
 		{
-			return 1;
-		}
-		if (k == 2)
-		{
-			return 2;
+			max = v;
+			dir = 2;
 		}
 	}
+
+	if (d3)
+	{
+		set0AtPos_ia(b, x, y + 1);
+		int v = deepMove_ia(b, x, y + 1, depth + 1, maxDepth, false);
+		makeAvaiAtPos_ia(b, x, y + 1);
+		if (v > max)
+		{
+			max = v;
+			dir = 3;
+		}
+	}
+
+	if (d4)
+	{
+		set0AtPos_ia(b, x + 1, y);
+		int v = deepMove_ia(b, x + 1, y, depth + 1, maxDepth, false);
+		makeAvaiAtPos_ia(b, x + 1, y);
+		if (v > max)
+		{
+			max = v;
+			dir = 4;
+		}
+	}
+
+	//reclaimBoards(next);
+
+	return returnDirection ? dir : max;
 }
 
 void test2()
@@ -279,7 +342,7 @@ void test2()
 	GetSystemTimeAsFileTime(&ft_now);
 	LONGLONG ll_now = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
 
-	nonRecursive1(k);
+	//nonRecursive1(k);
 
 	GetSystemTimeAsFileTime(&ft_now);
 	LONGLONG ll_now2 = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
@@ -289,7 +352,7 @@ void test2()
 	GetSystemTimeAsFileTime(&ft_now);
 	ll_now = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
 
-	recursive1(k);
+	//recursive1(k);
 
 	GetSystemTimeAsFileTime(&ft_now);
 	ll_now2 = (LONGLONG)ft_now.dwLowDateTime + ((LONGLONG)(ft_now.dwHighDateTime) << 32LL);
@@ -306,7 +369,7 @@ void test2()
 
 int main(int argc, char* argv[])
 {
-#if !_DEBUG
+#if _DEBUG
 	test();
 #endif
 

@@ -76,7 +76,7 @@ board* copyFrom(int *origin);
 /*
 Implementation of game's AI using alpha-beta prunning
 */
-int abp(board* b, const Position &myPos, const Position &opPos, int depth, int alpha, int beta, bool maximizePlayer, bool returnDirection);
+int abp(board* b, const Position myPos, const Position opPos, int depth, int alpha, int beta, bool maximizePlayer, bool returnDirection);
 
 int AiMove(int* origBoard, const Position &myPos, const Position &opPos);
 

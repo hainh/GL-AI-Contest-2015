@@ -244,7 +244,7 @@ inline void findAvailableDir(board* b, int &d1, int &d2, int &d3, int &d4, int x
 	d4 = x < MAP_SIZE - 1 ? (atPos(b, x + 1, y) == 0 ? 0 : 4) : 0;
 }
 
-inline void moveMe(board* next, const int d, int &resultDir, Position &my,const Position &opp, int &v, int &alpha, int &beta, int depth, bool &prunned)
+inline void moveMe(board* next, const int d, int &resultDir, Position my, Position opp, int &v, int &alpha, int &beta, int depth, bool &prunned)
 {
 	set0AtPos(next, my.x, my.y);
 	int t = abp(next, my, opp, depth - 1, alpha, beta, false, false);
@@ -261,7 +261,7 @@ inline void moveMe(board* next, const int d, int &resultDir, Position &my,const 
 	}
 }
 
-inline void moveOpp(board* next, const Position &my, Position &opp, int &v, int &alpha, int &beta, int depth, bool &prunned)
+inline void moveOpp(board* next, Position my, Position opp, int &v, int &alpha, int &beta, int depth, bool &prunned)
 {
 	set0AtPos(next, opp.x, opp.y);
 	int t = abp(next, my, opp, depth - 1, alpha, beta, true, false);
@@ -274,9 +274,8 @@ inline void moveOpp(board* next, const Position &my, Position &opp, int &v, int 
 	}
 }
 
-int deepMove(board* b, const Position &pos, int depth, const int &maxDepth, bool returnDirection)
+int deepMove(board* b, int x, int y, int depth, const int maxDepth, bool returnDirection)
 {
-	int x = pos.x, y = pos.y;
 	int d1 = 0, d2 = 0, d3 = 0, d4 = 0;
 	findAvailableDir(b, d1, d2, d3, d4, x, y);
 
@@ -292,14 +291,14 @@ int deepMove(board* b, const Position &pos, int depth, const int &maxDepth, bool
 	if (d1)
 	{
 		set0AtPos(next, x, y - 1);
-		max = deepMove(next, Position(x, y - 1), depth + 1, maxDepth, false);
+		max = deepMove(next, x, y - 1, depth + 1, maxDepth, false);
 		makeAvaiAtPos(next, x, y - 1);
 	}
 
 	if (d2)
 	{
 		set0AtPos(next, x - 1, y);
-		int v = deepMove(next, Position(x - 1, y), depth + 1, maxDepth, false);
+		int v = deepMove(next, x - 1, y, depth + 1, maxDepth, false);
 		makeAvaiAtPos(next, x - 1, y);
 		if (v > max)
 		{
@@ -311,7 +310,7 @@ int deepMove(board* b, const Position &pos, int depth, const int &maxDepth, bool
 	if (d3)
 	{
 		set0AtPos(next, x, y + 1);
-		int v = deepMove(next, Position(x, y + 1), depth + 1, maxDepth, false);
+		int v = deepMove(next, x, y + 1, depth + 1, maxDepth, false);
 		makeAvaiAtPos(next, x, y + 1);
 		if (v > max)
 		{
@@ -323,7 +322,7 @@ int deepMove(board* b, const Position &pos, int depth, const int &maxDepth, bool
 	if (d4)
 	{
 		set0AtPos(next, x + 1, y);
-		int v = deepMove(next, Position(x + 1, y), depth + 1, maxDepth, false);
+		int v = deepMove(next, x + 1, y, depth + 1, maxDepth, false);
 		makeAvaiAtPos(next, x + 1, y);
 		if (v > max)
 		{
@@ -337,9 +336,8 @@ int deepMove(board* b, const Position &pos, int depth, const int &maxDepth, bool
 	return returnDirection ? dir : max;
 }
 
-int deepMoveDfsIterative(board* b, const Position &pos)
+int deepMoveDfsIterative(board* b, int x, int y)
 {
-	int x = pos.x, y = pos.y;
 	int dirsToVisit[256], backTrack[256];
 	int topDir = 0, topBackTrack = 0;
 	if (y > 0 && atPos(b, x, y - 1))
@@ -434,7 +432,7 @@ int deepMoveDfsIterative(board* b, const Position &pos)
 	return maxDepth;
 }
 
-int abp(board* b, const Position &myPos, const Position &opPos, int depth, int alpha, int beta, bool maximizePlayer, bool returnDirection)
+int abp(board* b, const Position myPos, const Position opPos, int depth, int alpha, int beta, bool maximizePlayer, bool returnDirection)
 {
 	if (depth == 0)
 	{
@@ -478,31 +476,24 @@ int abp(board* b, const Position &myPos, const Position &opPos, int depth, int a
 #if _DEBUG
 			++callCountPosMoves;
 #endif
-			// Optim 1
+
 			int k = myMoveCount - oppMoveCount;
-			if (k >= 5 || k <= -5)
+			if (k >= 6 || k <= -6)
 			{
 				int ret = myMoveCount >= oppMoveCount ? 900 + depth + myMoveCount : -900 - depth - oppMoveCount;
 				return ret;
 			}
 			
-			if (myMoveCount <= 25 && oppMoveCount <= 25)
+			if (myMoveCount <= 30 && oppMoveCount <= 30)
 			{
 				board* sboard = allocBoards(b);
-				myMoveCount = deepMove(sboard, myPos, 0, 41, false);
-				oppMoveCount = deepMove(sboard, opPos, 0, 41, false);
+				myMoveCount = deepMoveDfsIterative(sboard, myPos.x, myPos.y);
+				oppMoveCount = deepMoveDfsIterative(sboard, opPos.x, opPos.y);
 				reclaimBoards(b);
 
 				int ret = myMoveCount >= oppMoveCount ? 900 + depth + myMoveCount : -900 - depth - oppMoveCount;
 				return ret;
 			}
-
-
-			// Optim 2
-			//if (movableCount - 3 > oppMoveCount || movableCount < oppMoveCount)
-			//{
-			//	return movableCount > oppMoveCount ? 900 + depth + oppMoveCount : -900 - depth + movableCount;
-			//}
 		}
 	}
 
@@ -1043,7 +1034,7 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 	bool iAmPlayer1 = (allMovesCount & 1) == 0; // allMovesCount is even
 
 	allMovesCount /= 2;
-	bool useLogic = allMovesCount <= 3;
+	bool useLogic = allMovesCount <= 4;
 	int depth = 0;
 
 	if (useLogic && allMovesCount >= 9)
@@ -1271,13 +1262,11 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 			{
 				//// Reconstruct my moves
 				//posibleMoves = posibleMoves - POSITIVE - 1; // minus 1: position of opponent is set to 2 before
-
 				//int distance = DISTANCE_SQR(myPos.x, myPos.y, opPos.x, opPos.y);
 				//if (distance <= 2)
 				//{
 				//	depth = posibleMoves;
 				//}
-
 				//if (posibleMoves < 55)
 				//{
 				//	depth = posibleMoves;
@@ -1291,13 +1280,21 @@ int AiMove(int* origBoard, const Position &myPos, const Position &opPos)
 				//	depth = 25;// 37;
 				//}
 
-				depth = 22;
+				if (allMovesCount <= 6)
+				{
+					depth = 22;
+				}
+				else
+				{
+					depth = 24;
+				}
 			}
 			else
 			{
 				int maxDepth = posibleMoves < 48 ? posibleMoves : (MINXY(80 - posibleMoves, 26));
+				maxDepth = MAXXY(10, maxDepth);
 				printf("-> self move, maxDepth = %d, posibleMoves = %d ", maxDepth, posibleMoves);
-				direction = deepMove(b, Position(myPos.y, myPos.x), 0, maxDepth, true);
+				direction = deepMove(b, myPos.y, myPos.x, 0, maxDepth, true);
 				return direction;
 			}
 		}
