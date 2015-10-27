@@ -8,6 +8,7 @@
 #define MINXY(x, y) (x < y ? x : y)
 #define MAX_INT (1 << 30)
 #define MIN_INT (-MAX_INT)
+#define TESTING 1
 
 // Memory management
 
@@ -15,7 +16,7 @@ struct board
 {
 	unsigned int cells[MAP_SIZE];
 	board* next;
-#if _DEBUG
+#if _DEBUG || TESTING
 	static int count;
 	board()
 	{
